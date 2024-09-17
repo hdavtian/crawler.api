@@ -123,7 +123,7 @@ namespace CrawlerWebApi.Controllers
                 await _crawlDriver.Crawl(_testModel.BaseSaveFolder, _testModel.BaseUrl);
 
                 // Return success response if no exceptions
-                return Ok("Crawl operation completed successfully");
+                return Ok(new { message = "Crawl operation completed successfully" });
             }
             catch (Exception ex)
             {
