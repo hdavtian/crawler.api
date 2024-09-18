@@ -18,19 +18,22 @@ namespace CrawlerWebApi.Controllers
         private readonly LoginDriver _loginDriver;
         private readonly TestModel _testModel;
         private readonly CrawlDriver _crawlDriver;
+        private readonly CrawlContext _crawlContext;
         private readonly Logger _logger;
 
         public TestController(
             PlaywrightContext playwrightContext,
             LoginDriver loginDriver,
             TestModel testModel,
-            CrawlDriver crawlDriver
+            CrawlDriver crawlDriver,
+            CrawlContext crawlContext
         )
         {
             _playwrightContext = playwrightContext;
             _loginDriver = loginDriver;
             _testModel = testModel;
             _crawlDriver = crawlDriver;
+            _crawlContext = crawlContext;
             _logger = NLog.LogManager.GetCurrentClassLogger();
         }
 
@@ -122,6 +125,35 @@ namespace CrawlerWebApi.Controllers
                 // Crawl operation (currently commented out)
                 await _crawlDriver.Crawl(_testModel.BaseSaveFolder, _testModel.BaseUrl);
 
+                // *******************************
+                // Cleanup operations
+
+                // Stop Timer
+                TimerUtil.StopTimer(_testModel.Timers, "ScenarioDuration");
+                _testModel.Duration = TimerUtil.GetElapsedTime(_testModel.Timers, "ScenarioDuration");
+
+                _testModel.BaseUrl = _crawlContext.BaseUrl;
+
+                // Save various reports
+                ReportWriter.SaveModelAsJsonFile(_networkData, _testModel.BaseSaveFolder, "networkData");
+                ReportWriter.SaveModelAsJsonFile(_testModel, _testModel.BaseSaveFolder, "test-info");
+                ReportWriter.SaveReport(_crawlContext.VisitedUrls, _testModel.BaseSaveFolder, "urls");
+                ReportWriter.SaveReport(_crawlContext.AppMarkups, _testModel.BaseSaveFolder, "app-markup");
+                ReportWriter.SaveReport(_crawlContext.AppTexts, _testModel.BaseSaveFolder, "app-text");
+                ReportWriter.SaveReport(_crawlContext.PageScreenshots, _testModel.BaseSaveFolder, "page-screenshots");
+                ReportWriter.SaveReport(_crawlContext.AppScreenshots, _testModel.BaseSaveFolder, "app-screenshots");
+                ReportWriter.SaveReport(_crawlContext.IcWebPages, _testModel.BaseSaveFolder, "pages-and-apps");
+                ReportWriter.UpdateJsonManifest(@"C:\ictf\tests.json", _testModel);
+
+                // Dispose playwright
+                await _playwrightContext.DisposeAsync();
+
+                // move har file
+                await CrawlerCommon.MoveHarFile(_harFileOriginalPath, Path.Combine(_testModel.BaseSaveFolder, _harFileName));
+
+                // *********************************************************************
+                // *********************************************************************
+                // *********************************************************************
                 // Return success response if no exceptions
                 return Ok(new { message = "Crawl operation completed successfully" });
             }
