@@ -41,94 +41,182 @@ namespace CrawlerWebApi.Services
                 string password = request.Password;
 
                 // Set up test model
-                TimerUtil.StartTimer(_testModel.Timers, "ScenarioDuration");
-                _testModel.Name = "Baseline test: " + url;
-                _testModel.Description = "Some description";
-                _testModel.DateTime = DateTime.Now;
-                _testModel.Browser.Width = 1600;
-                _testModel.Browser.Height = 1000;
+                try
+                {
+                    TimerUtil.StartTimer(_testModel.Timers, "ScenarioDuration");
+                    _testModel.Name = "Baseline test: " + url;
+                    _testModel.Description = "Some description";
+                    _testModel.DateTime = DateTime.Now;
+                    _testModel.Browser.Width = 1600;
+                    _testModel.Browser.Height = 1000;
+                    _logger.Info("Test model set up successfully.");
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error(ex, "Failed to set up test model.");
+                    return new TestResult { Success = false, ErrorMessage = "Failed to set up test model." };
+                }
 
                 // Create the HAR file path
                 string _harFileName = $"{_testModel.Id}.har";
                 string _harFileOriginalPath = Path.Combine(@"C:\ictf", _harFileName);
 
                 // Initialize PlaywrightContext
-                await _playwrightContext.InitializeAsync(_harFileOriginalPath);
-
-                // Assign browser details to TestModel
-                _testModel.Browser.Name = _playwrightContext.BrowserName;
+                try
+                {
+                    await _playwrightContext.InitializeAsync(_harFileOriginalPath);
+                    _testModel.Browser.Name = _playwrightContext.BrowserName;
+                    _logger.Info("Playwright context initialized successfully.");
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error(ex, "Failed to initialize Playwright context.");
+                    return new TestResult { Success = false, ErrorMessage = "Failed to initialize Playwright context." };
+                }
 
                 // Setup network interception
                 List<NetworkData> _networkData = new List<NetworkData>();
                 var page = _playwrightContext.Page;
                 string _currentPageUrl = page.Url;
 
-                page.FrameNavigated += (_, frame) =>
+                try
                 {
-                    if (frame == page.MainFrame)
+                    page.FrameNavigated += (_, frame) =>
                     {
-                        _currentPageUrl = frame.Url;
-                        _logger.Info($"Navigated to: {_currentPageUrl}");
-                    }
-                };
+                        if (frame == page.MainFrame)
+                        {
+                            _currentPageUrl = frame.Url;
+                            _logger.Info($"Navigated to: {_currentPageUrl}");
+                        }
+                    };
 
-                page.Request += (_, request) =>
-                {
-                    _logger.Info($"Request intercepted: {request.Url}");
-                    _networkData.Add(new NetworkData
+                    page.Request += (_, request) =>
                     {
-                        Url = request.Url,
-                        Method = request.Method,
-                        Headers = request.Headers,
-                        PostData = request.PostData,
-                        PageUrl = _currentPageUrl
-                    });
-                };
+                        _logger.Info($"Request intercepted: {request.Url}");
+                        _networkData.Add(new NetworkData
+                        {
+                            Url = request.Url,
+                            Method = request.Method,
+                            Headers = request.Headers,
+                            PostData = request.PostData,
+                            PageUrl = _currentPageUrl
+                        });
+                    };
 
-                page.Response += async (_, response) =>
-                {
-                    _logger.Info($"Response intercepted: {response.Url} with status {response.Status}");
-                    var matchingRequest = _networkData.FirstOrDefault(r => r.Url == response.Url);
-                    if (matchingRequest != null)
+                    page.Response += async (_, response) =>
                     {
-                        matchingRequest.StatusCode = response.Status;
-                    }
-                };
+                        _logger.Info($"Response intercepted: {response.Url} with status {response.Status}");
+                        var matchingRequest = _networkData.FirstOrDefault(r => r.Url == response.Url);
+                        if (matchingRequest != null)
+                        {
+                            matchingRequest.StatusCode = response.Status;
+                        }
+                    };
+                    _logger.Info("Network interception set up successfully.");
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error(ex, "Failed to set up network interception.");
+                    return new TestResult { Success = false, ErrorMessage = "Failed to set up network interception." };
+                }
 
                 // Perform login
-                await _loginDriver.LoginToApplication(url, username, password);
+                try
+                {
+                    await _loginDriver.LoginToApplication(url, username, password);
+                    _logger.Info("Login performed successfully.");
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error(ex, "Failed during login process.");
+                    return new TestResult { Success = false, ErrorMessage = "Failed during login process." };
+                }
 
                 // Perform crawl
-                await _crawlDriver.Crawl(_testModel.BaseSaveFolder, _testModel.BaseUrl);
+                try
+                {
+                    await _crawlDriver.Crawl(_testModel.BaseSaveFolder, _testModel.BaseUrl);
+                    _logger.Info("Crawl completed successfully.");
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error(ex, "Failed during crawl process.");
+                    return new TestResult { Success = false, ErrorMessage = "Failed during crawl process." };
+                }
 
                 // Stop timer and assign duration
-                TimerUtil.StopTimer(_testModel.Timers, "ScenarioDuration");
-                _testModel.Duration = TimerUtil.GetElapsedTime(_testModel.Timers, "ScenarioDuration");
-
-                _testModel.BaseUrl = _crawlContext.BaseUrl;
+                try
+                {
+                    TimerUtil.StopTimer(_testModel.Timers, "ScenarioDuration");
+                    _testModel.Duration = TimerUtil.GetElapsedTime(_testModel.Timers, "ScenarioDuration");
+                    _testModel.BaseUrl = _crawlContext.BaseUrl;
+                    _logger.Info("Timer stopped and duration assigned successfully.");
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error(ex, "Failed to stop timer and assign duration.");
+                    return new TestResult { Success = false, ErrorMessage = "Failed to stop timer and assign duration." };
+                }
 
                 // Save reports
-                SaveReports(_networkData);
+                try
+                {
+                    SaveReports(_networkData);
+                    _logger.Info("Reports saved successfully.");
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error(ex, "Failed to save reports.");
+                    return new TestResult { Success = false, ErrorMessage = "Failed to save reports." };
+                }
 
                 // Dispose of Playwright context
-                await _playwrightContext.DisposeAsync();
+                try
+                {
+                    await _playwrightContext.DisposeAsync();
+                    _logger.Info("Playwright context disposed successfully.");
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error(ex, "Failed to dispose Playwright context.");
+                    return new TestResult { Success = false, ErrorMessage = "Failed to dispose Playwright context." };
+                }
 
                 // Move HAR file
-                await CrawlerCommon.MoveHarFile(_harFileOriginalPath, Path.Combine(_testModel.BaseSaveFolder, _harFileName));
+                try
+                {
+                    await CrawlerCommon.MoveHarFile(_harFileOriginalPath, Path.Combine(_testModel.BaseSaveFolder, _harFileName));
+                    _logger.Info("HAR file moved successfully.");
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error(ex, "Failed to move HAR file.");
+                    return new TestResult { Success = false, ErrorMessage = "Failed to move HAR file." };
+                }
 
                 // Move Video file
-                await MoveVideo();
+                try
+                {
+                    await MoveVideo();
+                    _logger.Info("Video file moved successfully.");
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error(ex, "Failed to move video file.");
+                    return new TestResult { Success = false, ErrorMessage = "Failed to move video file." };
+                }
 
-                // @todo need to move log files too, currently nlog is saving in crawler project and configured to save to C:\Temp
-
+                // If everything is successful
+                _logger.Info("Baseline test executed successfully.");
                 return new TestResult { Success = true };
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Error during test execution");
+                _logger.Error(ex, "Unexpected error during test execution.");
                 return new TestResult { Success = false, ErrorMessage = ex.Message };
             }
         }
+
 
         private void SaveReports(List<NetworkData> networkData)
         {
