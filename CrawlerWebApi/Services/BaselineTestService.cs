@@ -1,0 +1,168 @@
+﻿using CrawlerWebApi.Interfaces;
+using CrawlerWebApi.Models;
+using IC.Test.Playwright.Crawler.Drivers;
+using IC.Test.Playwright.Crawler.Models;
+using IC.Test.Playwright.Crawler.Utility;
+using NLog;
+
+namespace CrawlerWebApi.Services
+{
+    public class BaselineTestService : ITestService
+    {
+        private readonly PlaywrightContext _playwrightContext;
+        private readonly LoginDriver _loginDriver;
+        private readonly TestModel _testModel;
+        private readonly CrawlDriver _crawlDriver;
+        private readonly CrawlContext _crawlContext;
+        private readonly Logger _logger;
+
+        public BaselineTestService(
+            PlaywrightContext playwrightContext,
+            LoginDriver loginDriver,
+            TestModel testModel,
+            CrawlDriver crawlDriver,
+            CrawlContext crawlContext
+        )
+        {
+            _playwrightContext = playwrightContext;
+            _loginDriver = loginDriver;
+            _testModel = testModel;
+            _crawlDriver = crawlDriver;
+            _crawlContext = crawlContext;
+            _logger = LogManager.GetCurrentClassLogger();
+        }
+
+        public async Task<TestResult> RunBaselineTestAsync(BaselineTestPostRequestModel request)
+        {
+            try
+            {
+                string url = request.Url;
+                string username = request.Username;
+                string password = request.Password;
+
+                // Set up test model
+                TimerUtil.StartTimer(_testModel.Timers, "ScenarioDuration");
+                _testModel.Name = "Baseline test: " + url;
+                _testModel.Description = "Some description";
+                _testModel.DateTime = DateTime.Now;
+                _testModel.Browser.Width = 1600;
+                _testModel.Browser.Height = 1000;
+
+                // Create the HAR file path
+                string _harFileName = $"{_testModel.Id}.har";
+                string _harFileOriginalPath = Path.Combine(@"C:\ictf", _harFileName);
+
+                // Initialize PlaywrightContext
+                await _playwrightContext.InitializeAsync(_harFileOriginalPath);
+
+                // Assign browser details to TestModel
+                _testModel.Browser.Name = _playwrightContext.BrowserName;
+
+                // Setup network interception
+                List<NetworkData> _networkData = new List<NetworkData>();
+                var page = _playwrightContext.Page;
+                string _currentPageUrl = page.Url;
+
+                page.FrameNavigated += (_, frame) =>
+                {
+                    if (frame == page.MainFrame)
+                    {
+                        _currentPageUrl = frame.Url;
+                        _logger.Info($"Navigated to: {_currentPageUrl}");
+                    }
+                };
+
+                page.Request += (_, request) =>
+                {
+                    _logger.Info($"Request intercepted: {request.Url}");
+                    _networkData.Add(new NetworkData
+                    {
+                        Url = request.Url,
+                        Method = request.Method,
+                        Headers = request.Headers,
+                        PostData = request.PostData,
+                        PageUrl = _currentPageUrl
+                    });
+                };
+
+                page.Response += async (_, response) =>
+                {
+                    _logger.Info($"Response intercepted: {response.Url} with status {response.Status}");
+                    var matchingRequest = _networkData.FirstOrDefault(r => r.Url == response.Url);
+                    if (matchingRequest != null)
+                    {
+                        matchingRequest.StatusCode = response.Status;
+                    }
+                };
+
+                // Perform login
+                await _loginDriver.LoginToApplication(url, username, password);
+
+                // Perform crawl
+                await _crawlDriver.Crawl(_testModel.BaseSaveFolder, _testModel.BaseUrl);
+
+                // Stop timer and assign duration
+                TimerUtil.StopTimer(_testModel.Timers, "ScenarioDuration");
+                _testModel.Duration = TimerUtil.GetElapsedTime(_testModel.Timers, "ScenarioDuration");
+
+                _testModel.BaseUrl = _crawlContext.BaseUrl;
+
+                // Save reports
+                SaveReports(_networkData);
+
+                // Dispose of Playwright context
+                await _playwrightContext.DisposeAsync();
+
+                // Move HAR file
+                await CrawlerCommon.MoveHarFile(_harFileOriginalPath, Path.Combine(_testModel.BaseSaveFolder, _harFileName));
+
+                // Move Video file
+                await MoveVideo();
+
+                // @todo need to move log files too, currently nlog is saving in crawler project and configured to save to C:\Temp
+
+                return new TestResult { Success = true };
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Error during test execution");
+                return new TestResult { Success = false, ErrorMessage = ex.Message };
+            }
+        }
+
+        private void SaveReports(List<NetworkData> networkData)
+        {
+            ReportWriter.SaveModelAsJsonFile(networkData, _testModel.BaseSaveFolder, "networkData");
+            ReportWriter.SaveModelAsJsonFile(_testModel, _testModel.BaseSaveFolder, "test-info");
+            ReportWriter.SaveReport(_crawlContext.VisitedUrls, _testModel.BaseSaveFolder, "urls");
+            ReportWriter.SaveReport(_crawlContext.AppMarkups, _testModel.BaseSaveFolder, "app-markup");
+            ReportWriter.SaveReport(_crawlContext.AppTexts, _testModel.BaseSaveFolder, "app-text");
+            ReportWriter.SaveReport(_crawlContext.PageScreenshots, _testModel.BaseSaveFolder, "page-screenshots");
+            ReportWriter.SaveReport(_crawlContext.AppScreenshots, _testModel.BaseSaveFolder, "app-screenshots");
+            ReportWriter.SaveReport(_crawlContext.IcWebPages, _testModel.BaseSaveFolder, "pages-and-apps");
+            ReportWriter.UpdateJsonManifest(@"C:\ictf\tests.json", _testModel);
+        }
+
+        // @todo This can be reworked to be make more sense, should analyze videos,
+        //   if many, only keep latest video (most recent create date) and delete rest
+        //   and then move that video to save location
+        private async Task MoveVideo()
+        {
+            try
+            {
+                string buildBaseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+                var projectRoot = Path.GetFullPath(Path.Combine(buildBaseDirectory, @"..\..\..\"));
+                string videoSourceDir = Path.Combine(projectRoot, "videos");
+                string videoDestDir = Path.Combine(_testModel.BaseSaveFolder, "videos");
+                await FileUtil.CopyDirectoryRecursiveAsync(videoSourceDir, videoDestDir);
+
+                // delete videos in source folder otherwise they accumelate
+                await FileUtil.DeleteFilesInDirectoryAsync(videoSourceDir);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Something went wrong trying to copy the video file. Error: {ex.Message}");
+            }
+        }
+    }
+}

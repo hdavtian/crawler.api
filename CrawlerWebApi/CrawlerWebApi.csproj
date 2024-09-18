@@ -14,4 +14,8 @@
     <ProjectReference Include="..\..\..\Playwright.Crawler\IC.Test.Playwright.Crawler\IC.Test.Playwright.Crawler\IC.Test.Playwright.Crawler.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="videos\" />
+  </ItemGroup>
+
 </Project>

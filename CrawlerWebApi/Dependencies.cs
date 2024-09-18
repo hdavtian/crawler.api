@@ -1,4 +1,6 @@
-﻿using IC.Test.Playwright.Crawler.Drivers;
+﻿using CrawlerWebApi.Interfaces;
+using CrawlerWebApi.Services;
+using IC.Test.Playwright.Crawler.Drivers;
 using IC.Test.Playwright.Crawler.Models;
 using IC.Test.Playwright.Crawler.Utility;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,6 +20,7 @@ public static class Dependencies
         services.AddScoped<CrawlContext>();
         services.AddScoped<CrawlerCommon>();
         services.AddScoped<AxeHelper>();
+        services.AddScoped<ITestService, BaselineTestService>();
 
         // Register PlaywrightContext and IPage
         services.AddScoped<PlaywrightContext>(provider =>
