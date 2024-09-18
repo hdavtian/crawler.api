@@ -20,7 +20,8 @@ public static class Dependencies
         services.AddScoped<CrawlContext>();
         services.AddScoped<CrawlerCommon>();
         services.AddScoped<AxeHelper>();
-        services.AddScoped<ITestService, BaselineTestService>();
+        services.AddScoped<IBaselineTestService, BaselineTestService>();
+        services.AddScoped<IDiffTestService, DiffTestService>();
 
         // Register PlaywrightContext and IPage
         services.AddScoped<PlaywrightContext>(provider =>

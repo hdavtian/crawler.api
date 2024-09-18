@@ -2,7 +2,7 @@
 
 namespace CrawlerWebApi.Interfaces
 {
-    public interface ITestService
+    public interface IBaselineTestService
     {
         Task<TestResult> RunBaselineTestAsync(BaselineTestPostRequestModel request);
     }

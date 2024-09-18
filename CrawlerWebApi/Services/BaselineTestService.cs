@@ -7,7 +7,7 @@ using NLog;
 
 namespace CrawlerWebApi.Services
 {
-    public class BaselineTestService : ITestService
+    public class BaselineTestService : IBaselineTestService
     {
         private readonly PlaywrightContext _playwrightContext;
         private readonly LoginDriver _loginDriver;
@@ -212,11 +212,10 @@ namespace CrawlerWebApi.Services
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Unexpected error during test execution.");
+                _logger.Error(ex, "Unexpected error during baseline test execution.");
                 return new TestResult { Success = false, ErrorMessage = ex.Message };
             }
         }
-
 
         private void SaveReports(List<NetworkData> networkData)
         {
