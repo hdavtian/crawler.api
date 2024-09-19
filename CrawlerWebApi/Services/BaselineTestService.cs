@@ -208,6 +208,10 @@ namespace CrawlerWebApi.Services
 
                 // If everything is successful
                 _logger.Info("Baseline test executed successfully.");
+
+                // copy log to save path
+                CopySpecflowLogToSavePath(_testModel.BaseSaveFolder);
+
                 return new TestResult { Success = true };
             }
             catch (Exception ex)
@@ -249,6 +253,45 @@ namespace CrawlerWebApi.Services
             catch (Exception ex)
             {
                 _logger.Error($"Something went wrong trying to copy the video file. Error: {ex.Message}");
+            }
+        }
+
+        private void CopySpecflowLogToSavePath(string savePath)
+        {
+            try
+            {
+                // copy specflow log file
+                string LogFilePath = @"C:\temp";
+                string LogFileName = "specflow-console.log";
+                string LogFileFullPath = Path.Combine(LogFilePath, LogFileName);
+                string LogFileDestFullPath = Path.Combine(savePath, LogFileName);
+                int maxRetries = 5;
+                int delay = 1000; // milliseconds
+
+                //await FileUtil.CopyFileAsync(LogFilePath, savePath, LogFileName);
+                for (int retry = 0; retry < maxRetries; retry++)
+                {
+                    try
+                    {
+                        // Attempt to copy the log file
+                        _logger.Info($"Will try to copy log file from '{LogFileFullPath}' to '{LogFileDestFullPath}'");
+                        File.Copy(LogFileFullPath, LogFileDestFullPath, true);
+                        _logger.Info("Log file was copied successfully");
+                        break; // Exit loop if copy is successful
+                    }
+                    catch (IOException ex)
+                    {
+                        // Log the exception if needed
+                        _logger.Error($"Failed to copy log file: {ex.Message}");
+
+                        // Wait for the specified delay before retrying
+                        Thread.Sleep(delay);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Something went wrong trying to copy the log file. Error: {ex.Message}");
             }
         }
     }
