@@ -36,6 +36,11 @@ namespace CrawlerWebApi.Controllers
 
             try
             {
+                // delete this
+                request.Url = "https://BostonCommonClientQAUATV4.investcloud.com";
+                request.Username = "client@bostoncommon.com";
+                request.Password = "Mustang.2022";
+
                 // Delegate the entire logic to TestService while keeping all functionality intact
                 var result = await _baselineTestService.RunBaselineTestAsync(request);
 
@@ -63,6 +68,10 @@ namespace CrawlerWebApi.Controllers
 
             try
             {
+                // delete this
+                request.BaseTestPath = @"C:\ictf\crawl-tests\bostoncommonclientqauatv4\bostoncommonclientqauatv4\09-18-2024__05-29-31-AM__1600x1000";
+                request.NewTestPath = @"C:\ictf\crawl-tests\bostoncommonclientqauatv4\bostoncommonclientqauatv4\09-18-2024__08-12-01-AM__1600x1000";
+                
                 // Delegate the entire logic to TestService while keeping all functionality intact
                 var result = await _diffTestService.RunDiffTestAsync(request);
 
