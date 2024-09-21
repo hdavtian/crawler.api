@@ -1,7 +1,16 @@
+using CrawlerWebApi.signalR;
+using Microsoft.AspNetCore.SignalR;
+using NLog;
+using NLog.Web;
+using System.Reflection.Metadata;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers();
+
+// Add SignalR service
+builder.Services.AddSignalR();
 
 // DI (Dependency Injection)
 builder.Services.AddProjectDependencies();
@@ -20,6 +29,9 @@ builder.Services.AddCors(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Load NLog configuration
+NLog.LogManager.Setup().LoadConfigurationFromFile("nlog.config");
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -35,6 +47,11 @@ app.UseCors("AllowSpecificOrigin");
 app.UseHttpsRedirection();
 
 app.UseAuthorization();
+
+// Set IHubContext for SignalRLogger (to make the static method work)
+var hubContext = app.Services.GetRequiredService<IHubContext<LoggingHub>>();
+SignalRLogger.SetHubContext(hubContext);
+app.MapHub<LoggingHub>("/loggingHub");
 
 app.MapControllers();
 
