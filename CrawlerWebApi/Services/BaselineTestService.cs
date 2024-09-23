@@ -39,6 +39,29 @@ namespace CrawlerWebApi.Services
                 string url = request.Url;
                 string username = request.Username;
                 string password = request.Password;
+                bool headless = request.Headless;
+                string browser = request.Browser;
+                int windowWidth = request.WindowWidth;
+                int windowHeight = request.WindowHeight;
+                bool recordVideo = request.RecordVideo;
+                bool takePageScreenshots = request.TakePageScreenshots;
+                bool takeAppScreenshots = request.TakeAppScreenshots;
+                bool captureAppHtml = request.CaptureAppHtml;
+                bool captureAppText = request.CaptureAppText;
+                bool generateAxeReports = request.GenerateAxeReports;
+                bool captureNetworkTraffic = request.CaptureNetworkTraffic;
+                bool saveHar = request.SaveHar;
+
+                // lets set relavant flags in _crawlContext
+                _crawlContext.TakePageScreenshots = takePageScreenshots;
+                _crawlContext.TakeAppScreenshots = takeAppScreenshots;
+                _crawlContext.CaptureAppHtml = captureAppHtml;
+                _crawlContext.CaptureAppText = captureAppText;
+                _crawlContext.GenerateAxeReports = generateAxeReports;
+                _crawlContext.CaptureNetworkTraffic = captureNetworkTraffic;
+
+                string _harFileName = $"{_testModel.Id}.har";
+                string _harFileOriginalPath = Path.Combine(@"C:\ictf", _harFileName);
 
                 // Set up test model
                 try
@@ -47,8 +70,8 @@ namespace CrawlerWebApi.Services
                     _testModel.Name = "Baseline test: " + url;
                     _testModel.Description = "Some description";
                     _testModel.DateTime = DateTime.Now;
-                    _testModel.Browser.Width = 1600;
-                    _testModel.Browser.Height = 1000;
+                    _testModel.Browser.Width = windowWidth;
+                    _testModel.Browser.Height = windowHeight;
                     _logger.Info("Test model set up successfully.");
                 }
                 catch (Exception ex)
@@ -57,14 +80,22 @@ namespace CrawlerWebApi.Services
                     return new TestResult { Success = false, ErrorMessage = "Failed to set up test model." };
                 }
 
-                // Create the HAR file path
-                string _harFileName = $"{_testModel.Id}.har";
-                string _harFileOriginalPath = Path.Combine(@"C:\ictf", _harFileName);
-
                 // Initialize PlaywrightContext
                 try
                 {
-                    await _playwrightContext.InitializeAsync(_harFileOriginalPath);
+                    _playwrightContext.SetBrowserTypeByName(browser);
+                    _playwrightContext._headless = _testModel.Browser.Headless = request.Headless;
+                    _playwrightContext._browserWidth = windowWidth;
+                    _playwrightContext._browserHeight = windowHeight;
+                    _playwrightContext._recordVideo = recordVideo;
+                    _playwrightContext._saveHar = saveHar;
+
+                    if (saveHar)
+                    {
+                        _playwrightContext._harPath = _harFileOriginalPath;
+                    }
+
+                    await _playwrightContext.InitializeAsync();
                     _testModel.Browser.Name = _playwrightContext.BrowserName;
                     _logger.Info("Playwright context initialized successfully.");
                 }
@@ -76,48 +107,51 @@ namespace CrawlerWebApi.Services
 
                 // Setup network interception
                 List<NetworkData> _networkData = new List<NetworkData>();
-                var page = _playwrightContext.Page;
-                string _currentPageUrl = page.Url;
-
-                try
+                if (captureNetworkTraffic)
                 {
-                    page.FrameNavigated += (_, frame) =>
-                    {
-                        if (frame == page.MainFrame)
-                        {
-                            _currentPageUrl = frame.Url;
-                            _logger.Info($"Navigated to: {_currentPageUrl}");
-                        }
-                    };
+                    var page = _playwrightContext.Page;
+                    string _currentPageUrl = page.Url;
 
-                    page.Request += (_, request) =>
+                    try
                     {
-                        _logger.Info($"Request intercepted: {request.Url}");
-                        _networkData.Add(new NetworkData
+                        page.FrameNavigated += (_, frame) =>
                         {
-                            Url = request.Url,
-                            Method = request.Method,
-                            Headers = request.Headers,
-                            PostData = request.PostData,
-                            PageUrl = _currentPageUrl
-                        });
-                    };
+                            if (frame == page.MainFrame)
+                            {
+                                _currentPageUrl = frame.Url;
+                                _logger.Info($"Navigated to: {_currentPageUrl}");
+                            }
+                        };
 
-                    page.Response += async (_, response) =>
-                    {
-                        _logger.Info($"Response intercepted: {response.Url} with status {response.Status}");
-                        var matchingRequest = _networkData.FirstOrDefault(r => r.Url == response.Url);
-                        if (matchingRequest != null)
+                        page.Request += (_, request) =>
                         {
-                            matchingRequest.StatusCode = response.Status;
-                        }
-                    };
-                    _logger.Info("Network interception set up successfully.");
-                }
-                catch (Exception ex)
-                {
-                    _logger.Error(ex, "Failed to set up network interception.");
-                    return new TestResult { Success = false, ErrorMessage = "Failed to set up network interception." };
+                            _logger.Info($"Request intercepted: {request.Url}");
+                            _networkData.Add(new NetworkData
+                            {
+                                Url = request.Url,
+                                Method = request.Method,
+                                Headers = request.Headers,
+                                PostData = request.PostData,
+                                PageUrl = _currentPageUrl
+                            });
+                        };
+
+                        page.Response += async (_, response) =>
+                        {
+                            _logger.Info($"Response intercepted: {response.Url} with status {response.Status}");
+                            var matchingRequest = _networkData.FirstOrDefault(r => r.Url == response.Url);
+                            if (matchingRequest != null)
+                            {
+                                matchingRequest.StatusCode = response.Status;
+                            }
+                        };
+                        _logger.Info("Network interception set up successfully.");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error(ex, "Failed to set up network interception.");
+                        return new TestResult { Success = false, ErrorMessage = "Failed to set up network interception." };
+                    }
                 }
 
                 // Perform login
@@ -161,8 +195,43 @@ namespace CrawlerWebApi.Services
                 // Save reports
                 try
                 {
-                    SaveReports(_networkData);
-                    _logger.Info("Reports saved successfully.");
+                    if (captureNetworkTraffic)
+                    {
+                        ReportWriter.SaveModelAsJsonFile(_networkData, _testModel.BaseSaveFolder, "networkData");
+                        _logger.Info("Network log reports saved successfully.");
+                    }
+
+                    ReportWriter.SaveModelAsJsonFile(_testModel, _testModel.BaseSaveFolder, "test-info");
+                    ReportWriter.SaveReport(_crawlContext.VisitedUrls, _testModel.BaseSaveFolder, "urls");
+                    
+                    if (captureAppHtml)
+                    {
+                        ReportWriter.SaveReport(_crawlContext.AppMarkups, _testModel.BaseSaveFolder, "app-markup");
+                        _logger.Info("Captured App Html log reports saved successfully.");
+                    }
+
+                    if (captureAppText)
+                    {
+                        ReportWriter.SaveReport(_crawlContext.AppTexts, _testModel.BaseSaveFolder, "app-text");
+                        _logger.Info("Captured App Text log reports saved successfully.");
+                    }
+
+                    if (takePageScreenshots)
+                    {
+                        ReportWriter.SaveReport(_crawlContext.PageScreenshots, _testModel.BaseSaveFolder, "page-screenshots");
+                        _logger.Info("Captured Page screenshots log reports saved successfully.");
+                    }
+
+                    if (takeAppScreenshots)
+                    {
+                        ReportWriter.SaveReport(_crawlContext.AppScreenshots, _testModel.BaseSaveFolder, "app-screenshots");
+                        _logger.Info("Captured App screenshots log reports saved successfully.");
+                    }
+
+                    ReportWriter.SaveReport(_crawlContext.IcWebPages, _testModel.BaseSaveFolder, "pages-and-apps");
+                    ReportWriter.UpdateJsonManifest(@"C:\ictf\tests.json", _testModel);
+
+                    
                 }
                 catch (Exception ex)
                 {
@@ -183,27 +252,33 @@ namespace CrawlerWebApi.Services
                 }
 
                 // Move HAR file
-                try
+                if (saveHar)
                 {
-                    await CrawlerCommon.MoveHarFile(_harFileOriginalPath, Path.Combine(_testModel.BaseSaveFolder, _harFileName));
-                    _logger.Info("HAR file moved successfully.");
-                }
-                catch (Exception ex)
-                {
-                    _logger.Error(ex, "Failed to move HAR file.");
-                    return new TestResult { Success = false, ErrorMessage = "Failed to move HAR file." };
+                    try
+                    {
+                        await CrawlerCommon.MoveHarFile(_harFileOriginalPath, Path.Combine(_testModel.BaseSaveFolder, _harFileName));
+                        _logger.Info("HAR file moved successfully.");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error(ex, "Failed to move HAR file.");
+                        return new TestResult { Success = false, ErrorMessage = "Failed to move HAR file." };
+                    }
                 }
 
                 // Move Video file
-                try
+                if (recordVideo)
                 {
-                    await MoveVideo();
-                    _logger.Info("Video file moved successfully.");
-                }
-                catch (Exception ex)
-                {
-                    _logger.Error(ex, "Failed to move video file.");
-                    return new TestResult { Success = false, ErrorMessage = "Failed to move video file." };
+                    try
+                    {
+                        await MoveVideo();
+                        _logger.Info("Video file moved successfully.");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error(ex, "Failed to move video file.");
+                        return new TestResult { Success = false, ErrorMessage = "Failed to move video file." };
+                    }
                 }
 
                 // If everything is successful
@@ -219,19 +294,6 @@ namespace CrawlerWebApi.Services
                 _logger.Error(ex, "Unexpected error during baseline test execution.");
                 return new TestResult { Success = false, ErrorMessage = ex.Message };
             }
-        }
-
-        private void SaveReports(List<NetworkData> networkData)
-        {
-            ReportWriter.SaveModelAsJsonFile(networkData, _testModel.BaseSaveFolder, "networkData");
-            ReportWriter.SaveModelAsJsonFile(_testModel, _testModel.BaseSaveFolder, "test-info");
-            ReportWriter.SaveReport(_crawlContext.VisitedUrls, _testModel.BaseSaveFolder, "urls");
-            ReportWriter.SaveReport(_crawlContext.AppMarkups, _testModel.BaseSaveFolder, "app-markup");
-            ReportWriter.SaveReport(_crawlContext.AppTexts, _testModel.BaseSaveFolder, "app-text");
-            ReportWriter.SaveReport(_crawlContext.PageScreenshots, _testModel.BaseSaveFolder, "page-screenshots");
-            ReportWriter.SaveReport(_crawlContext.AppScreenshots, _testModel.BaseSaveFolder, "app-screenshots");
-            ReportWriter.SaveReport(_crawlContext.IcWebPages, _testModel.BaseSaveFolder, "pages-and-apps");
-            ReportWriter.UpdateJsonManifest(@"C:\ictf\tests.json", _testModel);
         }
 
         // @todo This can be reworked to be make more sense, should analyze videos,

@@ -37,9 +37,9 @@ namespace CrawlerWebApi.Controllers
             try
             {
                 // delete this
-                request.Url = "https://BostonCommonClientQAUATV4.investcloud.com";
-                request.Username = "client@bostoncommon.com";
-                request.Password = "Mustang.2022";
+                //request.Url = "https://BostonCommonClientQAUATV4.investcloud.com";
+                //request.Username = "client@bostoncommon.com";
+                //request.Password = "Mustang.2022";
 
                 // Delegate the entire logic to TestService while keeping all functionality intact
                 var result = await _baselineTestService.RunBaselineTestAsync(request);
