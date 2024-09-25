@@ -230,8 +230,7 @@ namespace CrawlerWebApi.Services
 
                     ReportWriter.SaveReport(_crawlContext.IcWebPages, _testModel.BaseSaveFolder, "pages-and-apps");
                     ReportWriter.UpdateJsonManifest(@"C:\ictf\tests.json", _testModel);
-
-                    
+                    ReportWriter.PruneTestsManifest(@"C:\ictf\tests.json");
                 }
                 catch (Exception ex)
                 {
