@@ -68,11 +68,10 @@ namespace CrawlerWebApi.Controllers
 
             try
             {
-                // delete this
-                request.BaseTestPath = @"C:\ictf\crawl-tests\bostoncommonclientqauatv4\bostoncommonclientqauatv4\09-18-2024__05-29-31-AM__1600x1000";
-                request.NewTestPath = @"C:\ictf\crawl-tests\bostoncommonclientqauatv4\bostoncommonclientqauatv4\09-18-2024__08-12-01-AM__1600x1000";
-                
-                // Delegate the entire logic to TestService while keeping all functionality intact
+                // for debugging when using swagger, set to proper paths
+                //request.BaseTestPath = @"C:\ictf\crawl-tests\hcglobalpre1\hcglobalpre1\09-25-2024__10-50-26-AM__1440x800";
+                //request.NewTestPath = @"C:\ictf\crawl-tests\hcglobalpre1\hcglobalpre1\09-25-2024__02-28-08-PM__1440x800";
+
                 var result = await _diffTestService.RunDiffTestAsync(request);
 
                 if (result.Success)

@@ -33,8 +33,8 @@ namespace CrawlerWebApi.Services
             {
                 TimerUtil.StartTimer(_testModel.Timers, "DiffDuration");
 
-                _diffContext.BaseTestSavePath = request.BaseTestPath;
-                _diffContext.NewTestSavePath = request.NewTestPath;
+                _diffContext.BaseTestSavePath = PathUtil.ReplaceDoubleBackslashes(request.BaseTestPath);
+                _diffContext.NewTestSavePath = PathUtil.ReplaceDoubleBackslashes(request.NewTestPath);
 
                 // Set values for test model
                 _testModel.Name = "Diff test";
