@@ -36,6 +36,8 @@ namespace CrawlerWebApi.Services
         {
             try
             {
+                _logger.Info("<<TestStarted>>");
+
                 string url = request.Url;
                 string username = request.Username;
                 string password = request.Password;
@@ -286,10 +288,13 @@ namespace CrawlerWebApi.Services
                 // copy log to save path
                 CopySpecflowLogToSavePath(_testModel.BaseSaveFolder);
 
+                _logger.Info("<<TestEnded>>");
+
                 return new TestResult { Success = true };
             }
             catch (Exception ex)
             {
+                _logger.Info("<<TestError>>, <<TestEnded>>");
                 _logger.Error(ex, "Unexpected error during baseline test execution.");
                 return new TestResult { Success = false, ErrorMessage = ex.Message };
             }

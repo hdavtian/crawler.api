@@ -31,6 +31,8 @@ namespace CrawlerWebApi.Services
         {
             try
             {
+                _logger.Info("<<TestStarted>>");
+
                 TimerUtil.StartTimer(_testModel.Timers, "DiffDuration");
 
                 _diffContext.BaseTestSavePath = PathUtil.ReplaceDoubleBackslashes(request.BaseTestPath);
@@ -119,10 +121,12 @@ namespace CrawlerWebApi.Services
                 CopySpecflowLogToSavePath(_testModel.BaseSaveFolder);
 
                 // ***************************************
+                _logger.Info("<<TestEnded>>");
                 return new TestResult { Success = true, ErrorMessage = "Successfully completed diff test" };
 
             } catch (Exception ex)
             {
+                _logger.Info("<<TestError>>, <<TestEnded>>");
                 _logger.Error(ex, "Unexpected error during diff test execution.");
                 return new TestResult { Success = false, ErrorMessage = ex.Message };
             }
