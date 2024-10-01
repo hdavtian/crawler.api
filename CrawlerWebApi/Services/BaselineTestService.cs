@@ -78,7 +78,7 @@ namespace CrawlerWebApi.Services
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error(ex, "Failed to set up test model.");
+                    _logger.Error(ex, "<<Error>> Failed to set up test model.");
                     return new TestResult { Success = false, ErrorMessage = "Failed to set up test model." };
                 }
 
@@ -103,7 +103,7 @@ namespace CrawlerWebApi.Services
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error(ex, "Failed to initialize Playwright context.");
+                    _logger.Error(ex, "<<Error>> Failed to initialize Playwright context.");
                     return new TestResult { Success = false, ErrorMessage = "Failed to initialize Playwright context." };
                 }
 
@@ -151,7 +151,7 @@ namespace CrawlerWebApi.Services
                     }
                     catch (Exception ex)
                     {
-                        _logger.Error(ex, "Failed to set up network interception.");
+                        _logger.Error(ex, "<<Error>> Failed to set up network interception.");
                         return new TestResult { Success = false, ErrorMessage = "Failed to set up network interception." };
                     }
                 }
@@ -164,7 +164,7 @@ namespace CrawlerWebApi.Services
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error(ex, "Failed during login process.");
+                    _logger.Error(ex, "<<Error>> Failed during login process.");
                     return new TestResult { Success = false, ErrorMessage = "Failed during login process." };
                 }
 
@@ -176,7 +176,7 @@ namespace CrawlerWebApi.Services
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error(ex, "Failed during crawl process.");
+                    _logger.Error(ex, "<<Error>> Failed during crawl process.");
                     return new TestResult { Success = false, ErrorMessage = "Failed during crawl process." };
                 }
 
@@ -190,7 +190,7 @@ namespace CrawlerWebApi.Services
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error(ex, "Failed to stop timer and assign duration.");
+                    _logger.Error(ex, "<<Error>> Failed to stop timer and assign duration.");
                     return new TestResult { Success = false, ErrorMessage = "Failed to stop timer and assign duration." };
                 }
 
@@ -236,7 +236,7 @@ namespace CrawlerWebApi.Services
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error(ex, "Failed to save reports.");
+                    _logger.Error(ex, "<<Error>> Failed to save reports.");
                     return new TestResult { Success = false, ErrorMessage = "Failed to save reports." };
                 }
 
@@ -248,7 +248,7 @@ namespace CrawlerWebApi.Services
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error(ex, "Failed to dispose Playwright context.");
+                    _logger.Error(ex, "<<Error>> Failed to dispose Playwright context.");
                     return new TestResult { Success = false, ErrorMessage = "Failed to dispose Playwright context." };
                 }
 
@@ -262,7 +262,7 @@ namespace CrawlerWebApi.Services
                     }
                     catch (Exception ex)
                     {
-                        _logger.Error(ex, "Failed to move HAR file.");
+                        _logger.Error(ex, "<<Error>> Failed to move HAR file.");
                         return new TestResult { Success = false, ErrorMessage = "Failed to move HAR file." };
                     }
                 }
@@ -277,7 +277,7 @@ namespace CrawlerWebApi.Services
                     }
                     catch (Exception ex)
                     {
-                        _logger.Error(ex, "Failed to move video file.");
+                        _logger.Error(ex, "<<Error>> Failed to move video file.");
                         return new TestResult { Success = false, ErrorMessage = "Failed to move video file." };
                     }
                 }
@@ -295,7 +295,7 @@ namespace CrawlerWebApi.Services
             catch (Exception ex)
             {
                 _logger.Info("<<TestError>>, <<TestEnded>>");
-                _logger.Error(ex, "Unexpected error during baseline test execution.");
+                _logger.Error(ex, "<<Error>> Unexpected error during baseline test execution.");
                 return new TestResult { Success = false, ErrorMessage = ex.Message };
             }
         }
@@ -318,7 +318,7 @@ namespace CrawlerWebApi.Services
             }
             catch (Exception ex)
             {
-                _logger.Error($"Something went wrong trying to copy the video file. Error: {ex.Message}");
+                _logger.Error($"<<Error>> Something went wrong trying to copy the video file. Error: {ex.Message}");
             }
         }
 
@@ -348,7 +348,7 @@ namespace CrawlerWebApi.Services
                     catch (IOException ex)
                     {
                         // Log the exception if needed
-                        _logger.Error($"Failed to copy log file: {ex.Message}");
+                        _logger.Error($"<<Error>> Failed to copy log file: {ex.Message}");
 
                         // Wait for the specified delay before retrying
                         Thread.Sleep(delay);
@@ -357,7 +357,7 @@ namespace CrawlerWebApi.Services
             }
             catch (Exception ex)
             {
-                _logger.Error($"Something went wrong trying to copy the log file. Error: {ex.Message}");
+                _logger.Error($"<<Error>> Something went wrong trying to copy the log file. Error: {ex.Message}");
             }
         }
     }

@@ -53,7 +53,7 @@ namespace CrawlerWebApi.Controllers
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "An error occurred while running the baseline test.");
+                _logger.Error(ex, "<<Error>> An error occurred while running the baseline test.");
                 return StatusCode(StatusCodes.Status500InternalServerError, $"An error occurred: {ex.Message}");
             }
         }
@@ -83,7 +83,7 @@ namespace CrawlerWebApi.Controllers
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "An error occurred while running the baseline test.");
+                _logger.Error(ex, "<<Error>> An error occurred while running the baseline test.");
                 return StatusCode(StatusCodes.Status500InternalServerError, $"An error occurred: {ex.Message}");
             }
         }

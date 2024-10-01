@@ -127,7 +127,7 @@ namespace CrawlerWebApi.Services
             } catch (Exception ex)
             {
                 _logger.Info("<<TestError>>, <<TestEnded>>");
-                _logger.Error(ex, "Unexpected error during diff test execution.");
+                _logger.Error(ex, "<<Error>> Unexpected error during diff test execution.");
                 return new TestResult { Success = false, ErrorMessage = ex.Message };
             }
         }
@@ -158,7 +158,7 @@ namespace CrawlerWebApi.Services
                     catch (IOException ex)
                     {
                         // Log the exception if needed
-                        _logger.Error($"Failed to copy log file: {ex.Message}");
+                        _logger.Error($"<<Error>> Failed to copy log file: {ex.Message}");
 
                         // Wait for the specified delay before retrying
                         Thread.Sleep(delay);
@@ -167,7 +167,7 @@ namespace CrawlerWebApi.Services
             }
             catch (Exception ex)
             {
-                _logger.Error($"Something went wrong trying to copy the log file. Error: {ex.Message}");
+                _logger.Error($"<<Error>> Something went wrong trying to copy the log file. Error: {ex.Message}");
             }
         }
     }
