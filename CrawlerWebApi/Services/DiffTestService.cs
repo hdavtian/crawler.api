@@ -40,7 +40,8 @@ namespace CrawlerWebApi.Services
 
                 // Set values for test model
                 _testModel.Name = "Diff test";
-                _testModel.BaseSaveFolder = PathUtil.CreateSavePath("diff-tests");
+                string diffPathPartial = PathUtil.CreateSavePath("diff-tests");
+                _testModel.BaseSaveFolder = $"{diffPathPartial}__{_testModel.Id}";
                 _testModel.Description = $"Comparing baseline test '{_diffContext.BaseTestSavePath}' and new test '{_diffContext.NewTestSavePath}'";
                 _testModel.DateTime = DateTime.Now;
                 
@@ -138,9 +139,9 @@ namespace CrawlerWebApi.Services
             {
                 // copy specflow log file
                 string LogFilePath = @"C:\temp";
-                string LogFileName = "specflow-console.log";
-                string LogFileFullPath = Path.Combine(LogFilePath, LogFileName);
-                string LogFileDestFullPath = Path.Combine(savePath, LogFileName);
+                //string LogFileName = "specflow-console.log";
+                string LogFileFullPath = Path.Combine(LogFilePath, _testModel.LogFileName);
+                string LogFileDestFullPath = Path.Combine(savePath, _testModel.LogFileName);
                 int maxRetries = 5;
                 int delay = 1000; // milliseconds
 

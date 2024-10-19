@@ -338,9 +338,9 @@ namespace CrawlerWebApi.Services
             {
                 // copy specflow log file
                 string LogFilePath = @"C:\temp";
-                string LogFileName = "specflow-console.log";
-                string LogFileFullPath = Path.Combine(LogFilePath, LogFileName);
-                string LogFileDestFullPath = Path.Combine(savePath, LogFileName);
+                //string LogFileName = "specflow-console.log";
+                string LogFileFullPath = Path.Combine(LogFilePath, _testModel.LogFileName);
+                string LogFileDestFullPath = Path.Combine(savePath, _testModel.LogFileName);
                 int maxRetries = 5;
                 int delay = 1000; // milliseconds
 
