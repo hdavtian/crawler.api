@@ -4,6 +4,7 @@ using IC.Test.Playwright.Crawler.Drivers;
 using IC.Test.Playwright.Crawler.Models;
 using IC.Test.Playwright.Crawler.Utility;
 using NLog;
+using Microsoft.Extensions.Configuration;
 
 namespace CrawlerWebApi.Services
 {
@@ -15,13 +16,15 @@ namespace CrawlerWebApi.Services
         private readonly CrawlDriver _crawlDriver;
         private readonly CrawlContext _crawlContext;
         private readonly Logger _logger;
+        private readonly string _appBaseSavePath;
 
         public BaselineTestService(
             PlaywrightContext playwrightContext,
             LoginDriver loginDriver,
             TestModel testModel,
             CrawlDriver crawlDriver,
-            CrawlContext crawlContext
+            CrawlContext crawlContext,
+            IConfiguration configuration
         )
         {
             _playwrightContext = playwrightContext;
@@ -30,6 +33,7 @@ namespace CrawlerWebApi.Services
             _crawlDriver = crawlDriver;
             _crawlContext = crawlContext;
             _logger = LogManager.GetCurrentClassLogger();
+            _appBaseSavePath = configuration["AppBaseSavePath"];
         }
 
         public async Task<TestResult> RunBaselineTestAsync(BaselineTestPostRequestModel request)
@@ -63,7 +67,8 @@ namespace CrawlerWebApi.Services
                 _crawlContext.CaptureNetworkTraffic = captureNetworkTraffic;
 
                 string _harFileName = $"{_testModel.Id}.har";
-                string _harFileOriginalPath = Path.Combine(@"C:\ictf", _harFileName);
+                //string _harFileOriginalPath = Path.Combine(@"C:\ictf", _harFileName);
+                string _harFileOriginalPath = Path.Combine(_appBaseSavePath, _harFileName);
 
                 // Set up test model
                 try
@@ -237,8 +242,9 @@ namespace CrawlerWebApi.Services
                     }
 
                     ReportWriter.SaveReport(_crawlContext.IcWebPages, _testModel.BaseSaveFolder, "pages-and-apps");
-                    ReportWriter.UpdateJsonManifest(@"C:\ictf\tests.json", _testModel);
-                    ReportWriter.PruneTestsManifest(@"C:\ictf\tests.json");
+                    string testsManifestFile = Path.Combine(_appBaseSavePath, "tests.json");
+                    ReportWriter.UpdateJsonManifest(testsManifestFile, _testModel);
+                    ReportWriter.PruneTestsManifest(testsManifestFile);
                 }
                 catch (Exception ex)
                 {

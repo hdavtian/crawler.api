@@ -5,6 +5,7 @@ using IC.Test.Playwright.Crawler.Models;
 using IC.Test.Playwright.Crawler.Utility;
 using NLog;
 using System.Text;
+using Microsoft.Extensions.Configuration;
 
 namespace CrawlerWebApi.Services
 {
@@ -14,17 +15,20 @@ namespace CrawlerWebApi.Services
         private readonly DiffDriver _diffDriver;
         private readonly DiffContext _diffContext;
         private readonly Logger _logger;
+        private readonly string _appBaseSavePath;
 
         public DiffTestService(
             TestModel testModel,
             DiffDriver diffDriver,
-            DiffContext diffContext
+            DiffContext diffContext,
+            IConfiguration configuration
             )
         {
             _testModel = testModel;
             _diffDriver = diffDriver;
             _diffContext = diffContext;
             _logger = LogManager.GetCurrentClassLogger();
+            _appBaseSavePath = configuration["AppBaseSavePath"];
         }
 
         public async Task<TestResult> RunDiffTestAsync(DiffTestPostRequestModel request)
@@ -101,7 +105,9 @@ namespace CrawlerWebApi.Services
                 _testModel.Duration = TimerUtil.GetElapsedTime(_testModel.Timers, "DiffDuration");
 
                 // Update manifest file
-                ReportWriter.UpdateJsonManifest(@"C:\ictf\diff-tests\tests.json", _testModel);
+                string diffTestsManifestFile = Path.Combine(_appBaseSavePath, "diff-tests", "tests.json");
+                //ReportWriter.UpdateJsonManifest(@"C:\ictf\diff-tests\tests.json", _testModel);
+                ReportWriter.UpdateJsonManifest(diffTestsManifestFile, _testModel);
 
                 // copy baseline and newtest manifest files to diff base save for easy access
                 string sourceInfoFile = "test-info.json";
