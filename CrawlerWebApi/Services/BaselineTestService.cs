@@ -16,7 +16,8 @@ namespace CrawlerWebApi.Services
         private readonly CrawlDriver _crawlDriver;
         private readonly CrawlContext _crawlContext;
         private readonly Logger _logger;
-        private readonly string _appBaseSavePath;
+        private readonly string _apiRootWinPath;
+        private readonly string _siteArtifactsWinPath;
 
         public BaselineTestService(
             PlaywrightContext playwrightContext,
@@ -33,7 +34,8 @@ namespace CrawlerWebApi.Services
             _crawlDriver = crawlDriver;
             _crawlContext = crawlContext;
             _logger = LogManager.GetCurrentClassLogger();
-            _appBaseSavePath = configuration["AppBaseSavePath"];
+            _apiRootWinPath = configuration["ApiRootWinPath"];
+            _siteArtifactsWinPath = configuration["SiteArtifactsWinPath"];
         }
 
         public async Task<TestResult> RunBaselineTestAsync(BaselineTestPostRequestModel request)
@@ -68,7 +70,7 @@ namespace CrawlerWebApi.Services
 
                 string _harFileName = $"{_testModel.Id}.har";
                 //string _harFileOriginalPath = Path.Combine(@"C:\ictf", _harFileName);
-                string _harFileOriginalPath = Path.Combine(_appBaseSavePath, _harFileName);
+                string _harFileOriginalPath = Path.Combine(_siteArtifactsWinPath, _harFileName);
 
                 // Set up test model
                 try
@@ -242,7 +244,7 @@ namespace CrawlerWebApi.Services
                     }
 
                     ReportWriter.SaveReport(_crawlContext.IcWebPages, _testModel.BaseSaveFolder, "pages-and-apps");
-                    string testsManifestFile = Path.Combine(_appBaseSavePath, "tests.json");
+                    string testsManifestFile = Path.Combine(_siteArtifactsWinPath, "tests.json");
                     ReportWriter.UpdateJsonManifest(testsManifestFile, _testModel);
                     ReportWriter.PruneTestsManifest(testsManifestFile);
                 }
@@ -323,9 +325,7 @@ namespace CrawlerWebApi.Services
         {
             try
             {
-                string buildBaseDirectory = AppDomain.CurrentDomain.BaseDirectory;
-                var projectRoot = Path.GetFullPath(Path.Combine(buildBaseDirectory, @"..\..\..\"));
-                string videoSourceDir = Path.Combine(projectRoot, "videos");
+                string videoSourceDir = Path.Combine(_apiRootWinPath, "videos");
                 string videoDestDir = Path.Combine(_testModel.BaseSaveFolder, "videos");
                 await FileUtil.CopyDirectoryRecursiveAsync(videoSourceDir, videoDestDir);
 

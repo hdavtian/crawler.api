@@ -15,7 +15,7 @@ namespace CrawlerWebApi.Services
         private readonly DiffDriver _diffDriver;
         private readonly DiffContext _diffContext;
         private readonly Logger _logger;
-        private readonly string _appBaseSavePath;
+        private readonly string _siteArtifactsWinPath;
 
         public DiffTestService(
             TestModel testModel,
@@ -28,7 +28,7 @@ namespace CrawlerWebApi.Services
             _diffDriver = diffDriver;
             _diffContext = diffContext;
             _logger = LogManager.GetCurrentClassLogger();
-            _appBaseSavePath = configuration["AppBaseSavePath"];
+            _siteArtifactsWinPath = configuration["SiteArtifactsWinPath"];
         }
 
         public async Task<TestResult> RunDiffTestAsync(DiffTestPostRequestModel request)
@@ -105,7 +105,7 @@ namespace CrawlerWebApi.Services
                 _testModel.Duration = TimerUtil.GetElapsedTime(_testModel.Timers, "DiffDuration");
 
                 // Update manifest file
-                string diffTestsManifestFile = Path.Combine(_appBaseSavePath, "diff-tests", "tests.json");
+                string diffTestsManifestFile = Path.Combine(_siteArtifactsWinPath, "diff-tests", "tests.json");
                 //ReportWriter.UpdateJsonManifest(@"C:\ictf\diff-tests\tests.json", _testModel);
                 ReportWriter.UpdateJsonManifest(diffTestsManifestFile, _testModel);
 

@@ -6,6 +6,21 @@ using System.Reflection.Metadata;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Load configuration from 'config/appsettings.json' and environment-specific files
+builder.Configuration
+
+    // Ensure the root directory is used
+    .SetBasePath(Directory.GetCurrentDirectory())
+    
+    // Load main appsettings.json
+    .AddJsonFile("config/appsettings.json", optional: false, reloadOnChange: true)
+    
+    // Load environment-specific settings
+    .AddJsonFile($"config/appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
+    
+    // Optionally load environment variables
+    .AddEnvironmentVariables(); 
+
 // Add services to the container.
 builder.Services.AddControllers();
 
@@ -15,11 +30,14 @@ builder.Services.AddSignalR();
 // DI (Dependency Injection)
 builder.Services.AddProjectDependencies();
 
+// Get url from appsettings
+var allowedOrigin = builder.Configuration.GetValue<string>("CorsSettings:AllowedOrigin");
+
 // Add CORS policy
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowSpecificOrigin",
-        builder => builder.WithOrigins("http://localhost:4200") // Allow Angular app on localhost:4200
+        builder => builder.WithOrigins(allowedOrigin)
                           .AllowAnyMethod()
                           .AllowAnyHeader()
                           .AllowCredentials()); // Allow credentials like cookies, headers, etc.
