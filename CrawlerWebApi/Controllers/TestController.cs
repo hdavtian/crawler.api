@@ -43,7 +43,6 @@ namespace CrawlerWebApi.Controllers
 
             // Generate a unique TestId (GUID) to be used in creating a unique log file per test (for concurrency)
             var testGuid = Guid.NewGuid();
-            // Set testModel.Id to generated guid 
             _testModel.Id = testGuid;
             _testModel.LogFileName = $"crawl-{testGuid}.log";
 
@@ -53,9 +52,9 @@ namespace CrawlerWebApi.Controllers
                 try
                 {
                     // For testing purposes; remove these hardcoded values when deploying
-                    request.Url = "https://BostonCommonClientQAUATV4.investcloud.com";
-                    request.Username = "client@bostoncommon.com";
-                    request.Password = "Mustang.2022";
+                    //request.Url = "https://BostonCommonClientQAUATV4.investcloud.com";
+                    //request.Username = "client@bostoncommon.com";
+                    //request.Password = "Mustang.2022";
 
                     // Return the GUID immediately to the front end
                     Response.StatusCode = (int)HttpStatusCode.OK;
@@ -76,7 +75,8 @@ namespace CrawlerWebApi.Controllers
                         }
                     });
 
-                    return new EmptyResult(); // Returning empty result after writing the GUID to response
+                    // Returning empty result after writing the GUID to response
+                    return new EmptyResult(); 
                 }
                 catch (Exception ex)
                 {
@@ -85,7 +85,6 @@ namespace CrawlerWebApi.Controllers
                 }
             }
         }
-
 
         [HttpPost("diff")]
         public async Task<IActionResult> RunDiffTest([FromBody] DiffTestPostRequestModel request)
