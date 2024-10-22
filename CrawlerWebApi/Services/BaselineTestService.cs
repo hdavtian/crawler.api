@@ -69,8 +69,7 @@ namespace CrawlerWebApi.Services
                 _crawlContext.CaptureNetworkTraffic = captureNetworkTraffic;
 
                 string _harFileName = $"{_testModel.Id}.har";
-                //string _harFileOriginalPath = Path.Combine(@"C:\ictf", _harFileName);
-                string _harFileOriginalPath = Path.Combine(_siteArtifactsWinPath, _harFileName);
+                //string _harFileOriginalPath = Path.Combine(_siteArtifactsWinPath, _harFileName);
 
                 // Set up test model
                 try
@@ -81,6 +80,8 @@ namespace CrawlerWebApi.Services
                     _testModel.DateTime = DateTime.Now;
                     _testModel.Browser.Width = windowWidth;
                     _testModel.Browser.Height = windowHeight;
+                    string projectNameSubdomain = UrlUtil.GetSubdomainFromUrl(url).ToLower();
+                    _testModel.BaseSaveFolder = PathUtil.CreateSavePath("crawl-tests", projectNameSubdomain, projectNameSubdomain, windowWidth, windowHeight, _testModel.Id.ToString());
                     _logger.Info("Test model set up successfully.");
                 }
                 catch (Exception ex)
@@ -93,16 +94,23 @@ namespace CrawlerWebApi.Services
                 // Initialize PlaywrightContext
                 try
                 {
+                    _playwrightContext._testId = _testModel.Id;
                     _playwrightContext.SetBrowserTypeByName(browser);
                     _playwrightContext._headless = _testModel.Browser.Headless = request.Headless;
                     _playwrightContext._browserWidth = windowWidth;
                     _playwrightContext._browserHeight = windowHeight;
+
                     _playwrightContext._recordVideo = recordVideo;
+                    if (recordVideo)
+                    {
+                        _playwrightContext._videoSavePath = Path.Combine(_testModel.BaseSaveFolder, "videos");
+                    }
+                    
                     _playwrightContext._saveHar = saveHar;
 
                     if (saveHar)
                     {
-                        _playwrightContext._harPath = _harFileOriginalPath;
+                        _playwrightContext._harPath = _testModel.BaseSaveFolder;
                     }
 
                     await _playwrightContext.InitializeAsync();
@@ -268,38 +276,6 @@ namespace CrawlerWebApi.Services
                     return new TestResult { Success = false, ErrorMessage = "Failed to dispose Playwright context." };
                 }
 
-                // Move HAR file
-                if (saveHar)
-                {
-                    try
-                    {
-                        await CrawlerCommon.MoveHarFile(_harFileOriginalPath, Path.Combine(_testModel.BaseSaveFolder, _harFileName));
-                        _logger.Info("HAR file moved successfully.");
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.Error(ex, "<<Error>> Failed to move HAR file.");
-                        _logger.Info("<<TestEnded>>");
-                        return new TestResult { Success = false, ErrorMessage = "Failed to move HAR file." };
-                    }
-                }
-
-                // Move Video file
-                if (recordVideo)
-                {
-                    try
-                    {
-                        await MoveVideo();
-                        _logger.Info("Video file moved successfully.");
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.Error(ex, "<<Error>> Failed to move video file.");
-                        _logger.Info("<<TestEnded>>");
-                        return new TestResult { Success = false, ErrorMessage = "Failed to move video file." };
-                    }
-                }
-
                 // If everything is successful
                 _logger.Info("Baseline test executed successfully.");
 
@@ -315,26 +291,6 @@ namespace CrawlerWebApi.Services
                 _logger.Info("<<TestError>>, <<TestEnded>>");
                 _logger.Error(ex, "<<Error>> Unexpected error during baseline test execution.");
                 return new TestResult { Success = false, ErrorMessage = ex.Message };
-            }
-        }
-
-        // @todo This can be reworked to be make more sense, should analyze videos,
-        //   if many, only keep latest video (most recent create date) and delete rest
-        //   and then move that video to save location
-        private async Task MoveVideo()
-        {
-            try
-            {
-                string videoSourceDir = Path.Combine(_apiRootWinPath, "videos");
-                string videoDestDir = Path.Combine(_testModel.BaseSaveFolder, "videos");
-                await FileUtil.CopyDirectoryRecursiveAsync(videoSourceDir, videoDestDir);
-
-                // delete videos in source folder otherwise they accumelate
-                await FileUtil.DeleteFilesInDirectoryAsync(videoSourceDir);
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"<<Error>> Something went wrong trying to copy the video file. Error: {ex.Message}");
             }
         }
 
