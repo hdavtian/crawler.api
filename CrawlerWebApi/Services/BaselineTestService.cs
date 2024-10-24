@@ -5,6 +5,7 @@ using IC.Test.Playwright.Crawler.Models;
 using IC.Test.Playwright.Crawler.Utility;
 using NLog;
 using Microsoft.Extensions.Configuration;
+using System.Text;
 
 namespace CrawlerWebApi.Services
 {
@@ -43,6 +44,8 @@ namespace CrawlerWebApi.Services
             try
             {
                 _logger.Info("<<TestStarted>>");
+
+                LogBaselineTestPostRequestModel(request);
 
                 string url = request.Url;
                 string username = request.Username;
@@ -83,6 +86,7 @@ namespace CrawlerWebApi.Services
                     string projectNameSubdomain = UrlUtil.GetSubdomainFromUrl(url).ToLower();
                     _testModel.BaseSaveFolder = PathUtil.CreateSavePath("crawl-tests", projectNameSubdomain, projectNameSubdomain, windowWidth, windowHeight, _testModel.Id.ToString());
                     _logger.Info("Test model set up successfully.");
+                    _logger.Info($"BaseSaveFolder: {_testModel.BaseSaveFolder}");
                 }
                 catch (Exception ex)
                 {
@@ -291,6 +295,25 @@ namespace CrawlerWebApi.Services
                 _logger.Error(ex, "<<Error>> Unexpected error during baseline test execution.");
                 return new TestResult { Success = false, ErrorMessage = ex.Message };
             }
+        }
+
+        private void LogBaselineTestPostRequestModel(BaselineTestPostRequestModel model)
+        {
+            var properties = model.GetType().GetProperties();
+            var logMessage = new StringBuilder();
+
+            logMessage.AppendLine("Logging BaselineTestPostRequestModel properties:");
+
+            foreach (var property in properties)
+            {
+                var value = property.Name.Equals("Password", StringComparison.OrdinalIgnoreCase)
+                    ? "******" // Mask the password value
+                    : property.GetValue(model) ?? "null"; // Log the actual value or "null" if not set
+
+                logMessage.AppendLine($"{property.Name}: {value}");
+            }
+
+            _logger.Info(logMessage.ToString());
         }
     }
 }

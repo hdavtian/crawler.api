@@ -52,9 +52,23 @@ namespace CrawlerWebApi.Controllers
                 try
                 {
                     // For testing purposes; remove these hardcoded values when deploying
-                    //request.Url = "https://BostonCommonClientQAUATV4.investcloud.com";
-                    //request.Username = "client@bostoncommon.com";
-                    //request.Password = "Mustang.2022";
+                    /*
+                    request.Url = "https://BostonCommonClientQAUATV4.investcloud.com";
+                    request.Username = "client@bostoncommon.com";
+                    request.Password = "Mustang.2022";
+                    request.Browser = "Chrome";
+                    request.Headless = false;
+                    request.WindowWidth = 1200;
+                    request.WindowHeight = 800;
+                    request.RecordVideo = true;
+                    request.TakePageScreenshots = true;
+                    request.TakeAppScreenshots  = true;
+                    request.CaptureAppHtml = true;
+                    request.CaptureAppText = true;
+                    request.GenerateAxeReports = true;
+                    request.CaptureNetworkTraffic = true;
+                    request.SaveHar = true;
+                    */
 
                     // Return the GUID immediately to the front end
                     Response.StatusCode = (int)HttpStatusCode.OK;
