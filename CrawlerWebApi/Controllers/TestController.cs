@@ -57,7 +57,7 @@ namespace CrawlerWebApi.Controllers
                     request.Username = "client@bostoncommon.com";
                     request.Password = "Mustang.2022";
                     request.Browser = "Chrome";
-                    request.Headless = false;
+                    request.Headless = true;
                     request.WindowWidth = 1200;
                     request.WindowHeight = 800;
                     request.RecordVideo = true;
@@ -119,6 +119,10 @@ namespace CrawlerWebApi.Controllers
             {
                 try
                 {
+                    // Return the GUID immediately to the front end
+                    Response.StatusCode = (int)HttpStatusCode.OK;
+                    await Response.WriteAsync($"{{\"guid\":\"{testGuid}\"}}");
+
                     // for debugging when using swagger, set to proper paths
                     //request.BaseTestPath = @"C:\ictf\crawl-tests\hcglobalpre1\hcglobalpre1\09-25-2024__10-50-26-AM__1440x800";
                     //request.NewTestPath = @"C:\ictf\crawl-tests\hcglobalpre1\hcglobalpre1\09-25-2024__02-28-08-PM__1440x800";

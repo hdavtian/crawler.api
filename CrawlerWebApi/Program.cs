@@ -1,3 +1,4 @@
+using CrawlerWebApi.Services;
 using CrawlerWebApi.signalR;
 using Microsoft.AspNetCore.SignalR;
 using NLog;
@@ -54,6 +55,16 @@ builder.Services.AddSwaggerGen();
 
 // Load NLog configuration
 NLog.LogManager.Setup().LoadConfigurationFromFile("nlog.config");
+
+// -
+// --
+// ---
+// ----
+// ----- Build
+// ----
+// ---
+// --
+// -
 
 var app = builder.Build();
 

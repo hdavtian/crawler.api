@@ -19,6 +19,7 @@ namespace CrawlerWebApi.Services
         private readonly Logger _logger;
         private readonly string _apiRootWinPath;
         private readonly string _siteArtifactsWinPath;
+        private readonly WriterQueueService _writerQueueService;
 
         public BaselineTestService(
             PlaywrightContext playwrightContext,
@@ -26,7 +27,8 @@ namespace CrawlerWebApi.Services
             TestModel testModel,
             CrawlDriver crawlDriver,
             CrawlContext crawlContext,
-            IConfiguration configuration
+            IConfiguration configuration,
+            WriterQueueService writerQueueService
         )
         {
             _playwrightContext = playwrightContext;
@@ -37,6 +39,7 @@ namespace CrawlerWebApi.Services
             _logger = LogManager.GetCurrentClassLogger();
             _apiRootWinPath = configuration["ApiRootWinPath"];
             _siteArtifactsWinPath = configuration["SiteArtifactsWinPath"];
+            _writerQueueService = writerQueueService;
         }
 
         public async Task<TestResult> RunBaselineTestAsync(BaselineTestPostRequestModel request)
@@ -72,7 +75,6 @@ namespace CrawlerWebApi.Services
                 _crawlContext.CaptureNetworkTraffic = captureNetworkTraffic;
 
                 string _harFileName = $"{_testModel.Id}.har";
-                //string _harFileOriginalPath = Path.Combine(_siteArtifactsWinPath, _harFileName);
 
                 // Set up test model
                 try
@@ -148,7 +150,7 @@ namespace CrawlerWebApi.Services
 
                         page.Request += (_, request) =>
                         {
-                            _logger.Info($"Request intercepted: {request.Url}");
+                            //_logger.Info($"Request intercepted: {request.Url}");
                             _networkData.Add(new NetworkData
                             {
                                 Url = request.Url,
@@ -161,14 +163,14 @@ namespace CrawlerWebApi.Services
 
                         page.Response += async (_, response) =>
                         {
-                            _logger.Info($"Response intercepted: {response.Url} with status {response.Status}");
+                            //_logger.Info($"Response intercepted: {response.Url} with status {response.Status}");
                             var matchingRequest = _networkData.FirstOrDefault(r => r.Url == response.Url);
                             if (matchingRequest != null)
                             {
                                 matchingRequest.StatusCode = response.Status;
                             }
                         };
-                        _logger.Info("Network interception set up successfully.");
+                        //_logger.Info("Network interception set up successfully.");
                     }
                     catch (Exception ex)
                     {
@@ -257,8 +259,13 @@ namespace CrawlerWebApi.Services
 
                     ReportWriter.SaveReport(_crawlContext.IcWebPages, _testModel.BaseSaveFolder, "pages-and-apps");
                     string testsManifestFile = Path.Combine(_siteArtifactsWinPath, "tests.json");
-                    ReportWriter.UpdateJsonManifest(testsManifestFile, _testModel);
-                    ReportWriter.PruneTestsManifest(testsManifestFile);
+
+                    // Update the manifest
+                    await _writerQueueService.EnqueueAsync(async () =>
+                    {
+                        ReportWriter.UpdateJsonManifest(testsManifestFile, _testModel);
+                        ReportWriter.PruneTestsManifest(testsManifestFile);
+                    });
                 }
                 catch (Exception ex)
                 {

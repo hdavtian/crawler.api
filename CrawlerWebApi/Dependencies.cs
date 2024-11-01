@@ -22,6 +22,7 @@ public static class Dependencies
         services.AddScoped<AxeHelper>();
         services.AddScoped<IBaselineTestService, BaselineTestService>();
         services.AddScoped<IDiffTestService, DiffTestService>();
+        services.AddSingleton<WriterQueueService>();
 
         // Register PlaywrightContext and IPage
         services.AddScoped<PlaywrightContext>(provider =>

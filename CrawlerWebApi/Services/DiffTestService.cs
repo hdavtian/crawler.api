@@ -16,12 +16,14 @@ namespace CrawlerWebApi.Services
         private readonly DiffContext _diffContext;
         private readonly Logger _logger;
         private readonly string _siteArtifactsWinPath;
+        private readonly WriterQueueService _writerQueueService;
 
         public DiffTestService(
             TestModel testModel,
             DiffDriver diffDriver,
             DiffContext diffContext,
-            IConfiguration configuration
+            IConfiguration configuration,
+            WriterQueueService writerQueueService
             )
         {
             _testModel = testModel;
@@ -29,6 +31,7 @@ namespace CrawlerWebApi.Services
             _diffContext = diffContext;
             _logger = LogManager.GetCurrentClassLogger();
             _siteArtifactsWinPath = configuration["SiteArtifactsWinPath"];
+            _writerQueueService = writerQueueService;
         }
 
         public async Task<TestResult> RunDiffTestAsync(DiffTestPostRequestModel request)
@@ -104,10 +107,12 @@ namespace CrawlerWebApi.Services
                 TimerUtil.StopTimer(_testModel.Timers, "DiffDuration");
                 _testModel.Duration = TimerUtil.GetElapsedTime(_testModel.Timers, "DiffDuration");
 
-                // Update manifest file
-                string diffTestsManifestFile = Path.Combine(_siteArtifactsWinPath, "diff-tests", "tests.json");
-                //ReportWriter.UpdateJsonManifest(@"C:\ictf\diff-tests\tests.json", _testModel);
-                ReportWriter.UpdateJsonManifest(diffTestsManifestFile, _testModel);
+                // Update diff manifest
+                await _writerQueueService.EnqueueAsync(async () =>
+                {
+                    string diffTestsManifestFile = Path.Combine(_siteArtifactsWinPath, "diff-tests", "tests.json");
+                    ReportWriter.UpdateJsonManifest(diffTestsManifestFile, _testModel);
+                });
 
                 // copy baseline and newtest manifest files to diff base save for easy access
                 string sourceInfoFile = "test-info.json";
