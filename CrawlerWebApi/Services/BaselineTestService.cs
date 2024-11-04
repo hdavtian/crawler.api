@@ -4,6 +4,8 @@ using IC.Test.Playwright.Crawler.Drivers;
 using IC.Test.Playwright.Crawler.Models;
 using IC.Test.Playwright.Crawler.Utility;
 using NLog;
+using Microsoft.Extensions.Configuration;
+using System.Text;
 
 namespace CrawlerWebApi.Services
 {
@@ -15,13 +17,18 @@ namespace CrawlerWebApi.Services
         private readonly CrawlDriver _crawlDriver;
         private readonly CrawlContext _crawlContext;
         private readonly Logger _logger;
+        private readonly string _apiRootWinPath;
+        private readonly string _siteArtifactsWinPath;
+        private readonly WriterQueueService _writerQueueService;
 
         public BaselineTestService(
             PlaywrightContext playwrightContext,
             LoginDriver loginDriver,
             TestModel testModel,
             CrawlDriver crawlDriver,
-            CrawlContext crawlContext
+            CrawlContext crawlContext,
+            IConfiguration configuration,
+            WriterQueueService writerQueueService
         )
         {
             _playwrightContext = playwrightContext;
@@ -30,6 +37,9 @@ namespace CrawlerWebApi.Services
             _crawlDriver = crawlDriver;
             _crawlContext = crawlContext;
             _logger = LogManager.GetCurrentClassLogger();
+            _apiRootWinPath = configuration["ApiRootWinPath"];
+            _siteArtifactsWinPath = configuration["SiteArtifactsWinPath"];
+            _writerQueueService = writerQueueService;
         }
 
         public async Task<TestResult> RunBaselineTestAsync(BaselineTestPostRequestModel request)
@@ -37,6 +47,8 @@ namespace CrawlerWebApi.Services
             try
             {
                 _logger.Info("<<TestStarted>>");
+
+                LogBaselineTestPostRequestModel(request);
 
                 string url = request.Url;
                 string username = request.Username;
@@ -63,7 +75,6 @@ namespace CrawlerWebApi.Services
                 _crawlContext.CaptureNetworkTraffic = captureNetworkTraffic;
 
                 string _harFileName = $"{_testModel.Id}.har";
-                string _harFileOriginalPath = Path.Combine(@"C:\ictf", _harFileName);
 
                 // Set up test model
                 try
@@ -74,7 +85,10 @@ namespace CrawlerWebApi.Services
                     _testModel.DateTime = DateTime.Now;
                     _testModel.Browser.Width = windowWidth;
                     _testModel.Browser.Height = windowHeight;
+                    string projectNameSubdomain = UrlUtil.GetSubdomainFromUrl(url).ToLower();
+                    _testModel.BaseSaveFolder = PathUtil.CreateSavePath("crawl-tests", projectNameSubdomain, projectNameSubdomain, windowWidth, windowHeight, _testModel.Id.ToString());
                     _logger.Info("Test model set up successfully.");
+                    _logger.Info($"BaseSaveFolder: {_testModel.BaseSaveFolder}");
                 }
                 catch (Exception ex)
                 {
@@ -86,16 +100,23 @@ namespace CrawlerWebApi.Services
                 // Initialize PlaywrightContext
                 try
                 {
+                    _playwrightContext._testId = _testModel.Id;
                     _playwrightContext.SetBrowserTypeByName(browser);
                     _playwrightContext._headless = _testModel.Browser.Headless = request.Headless;
                     _playwrightContext._browserWidth = windowWidth;
                     _playwrightContext._browserHeight = windowHeight;
+
                     _playwrightContext._recordVideo = recordVideo;
+                    if (recordVideo)
+                    {
+                        _playwrightContext._videoSavePath = Path.Combine(_testModel.BaseSaveFolder, "videos");
+                    }
+                    
                     _playwrightContext._saveHar = saveHar;
 
                     if (saveHar)
                     {
-                        _playwrightContext._harPath = _harFileOriginalPath;
+                        _playwrightContext._harPath = _testModel.BaseSaveFolder;
                     }
 
                     await _playwrightContext.InitializeAsync();
@@ -129,7 +150,7 @@ namespace CrawlerWebApi.Services
 
                         page.Request += (_, request) =>
                         {
-                            _logger.Info($"Request intercepted: {request.Url}");
+                            //_logger.Info($"Request intercepted: {request.Url}");
                             _networkData.Add(new NetworkData
                             {
                                 Url = request.Url,
@@ -142,14 +163,14 @@ namespace CrawlerWebApi.Services
 
                         page.Response += async (_, response) =>
                         {
-                            _logger.Info($"Response intercepted: {response.Url} with status {response.Status}");
+                            //_logger.Info($"Response intercepted: {response.Url} with status {response.Status}");
                             var matchingRequest = _networkData.FirstOrDefault(r => r.Url == response.Url);
                             if (matchingRequest != null)
                             {
                                 matchingRequest.StatusCode = response.Status;
                             }
                         };
-                        _logger.Info("Network interception set up successfully.");
+                        //_logger.Info("Network interception set up successfully.");
                     }
                     catch (Exception ex)
                     {
@@ -237,8 +258,14 @@ namespace CrawlerWebApi.Services
                     }
 
                     ReportWriter.SaveReport(_crawlContext.IcWebPages, _testModel.BaseSaveFolder, "pages-and-apps");
-                    ReportWriter.UpdateJsonManifest(@"C:\ictf\tests.json", _testModel);
-                    ReportWriter.PruneTestsManifest(@"C:\ictf\tests.json");
+                    string testsManifestFile = Path.Combine(_siteArtifactsWinPath, "tests.json");
+
+                    // Update the manifest
+                    await _writerQueueService.EnqueueAsync(async () =>
+                    {
+                        ReportWriter.UpdateJsonManifest(testsManifestFile, _testModel);
+                        ReportWriter.PruneTestsManifest(testsManifestFile);
+                    });
                 }
                 catch (Exception ex)
                 {
@@ -260,44 +287,11 @@ namespace CrawlerWebApi.Services
                     return new TestResult { Success = false, ErrorMessage = "Failed to dispose Playwright context." };
                 }
 
-                // Move HAR file
-                if (saveHar)
-                {
-                    try
-                    {
-                        await CrawlerCommon.MoveHarFile(_harFileOriginalPath, Path.Combine(_testModel.BaseSaveFolder, _harFileName));
-                        _logger.Info("HAR file moved successfully.");
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.Error(ex, "<<Error>> Failed to move HAR file.");
-                        _logger.Info("<<TestEnded>>");
-                        return new TestResult { Success = false, ErrorMessage = "Failed to move HAR file." };
-                    }
-                }
-
-                // Move Video file
-                if (recordVideo)
-                {
-                    try
-                    {
-                        await MoveVideo();
-                        _logger.Info("Video file moved successfully.");
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.Error(ex, "<<Error>> Failed to move video file.");
-                        _logger.Info("<<TestEnded>>");
-                        return new TestResult { Success = false, ErrorMessage = "Failed to move video file." };
-                    }
-                }
-
                 // If everything is successful
                 _logger.Info("Baseline test executed successfully.");
 
-                // copy log to save path
-                CopySpecflowLogToSavePath(_testModel.BaseSaveFolder);
-
+                // move log to save path
+                FileUtil.MoveFileAsync(@"c:\Temp", _testModel.BaseSaveFolder,_testModel.LogFileName, _logger);
                 _logger.Info("<<TestEnded>>");
 
                 return new TestResult { Success = true };
@@ -310,65 +304,23 @@ namespace CrawlerWebApi.Services
             }
         }
 
-        // @todo This can be reworked to be make more sense, should analyze videos,
-        //   if many, only keep latest video (most recent create date) and delete rest
-        //   and then move that video to save location
-        private async Task MoveVideo()
+        private void LogBaselineTestPostRequestModel(BaselineTestPostRequestModel model)
         {
-            try
-            {
-                string buildBaseDirectory = AppDomain.CurrentDomain.BaseDirectory;
-                var projectRoot = Path.GetFullPath(Path.Combine(buildBaseDirectory, @"..\..\..\"));
-                string videoSourceDir = Path.Combine(projectRoot, "videos");
-                string videoDestDir = Path.Combine(_testModel.BaseSaveFolder, "videos");
-                await FileUtil.CopyDirectoryRecursiveAsync(videoSourceDir, videoDestDir);
+            var properties = model.GetType().GetProperties();
+            var logMessage = new StringBuilder();
 
-                // delete videos in source folder otherwise they accumelate
-                await FileUtil.DeleteFilesInDirectoryAsync(videoSourceDir);
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"<<Error>> Something went wrong trying to copy the video file. Error: {ex.Message}");
-            }
-        }
+            logMessage.AppendLine("Logging BaselineTestPostRequestModel properties:");
 
-        private void CopySpecflowLogToSavePath(string savePath)
-        {
-            try
+            foreach (var property in properties)
             {
-                // copy specflow log file
-                string LogFilePath = @"C:\temp";
-                string LogFileName = "specflow-console.log";
-                string LogFileFullPath = Path.Combine(LogFilePath, LogFileName);
-                string LogFileDestFullPath = Path.Combine(savePath, LogFileName);
-                int maxRetries = 5;
-                int delay = 1000; // milliseconds
+                var value = property.Name.Equals("Password", StringComparison.OrdinalIgnoreCase)
+                    ? "******" // Mask the password value
+                    : property.GetValue(model) ?? "null"; // Log the actual value or "null" if not set
 
-                //await FileUtil.CopyFileAsync(LogFilePath, savePath, LogFileName);
-                for (int retry = 0; retry < maxRetries; retry++)
-                {
-                    try
-                    {
-                        // Attempt to copy the log file
-                        _logger.Info($"Will try to copy log file from '{LogFileFullPath}' to '{LogFileDestFullPath}'");
-                        File.Copy(LogFileFullPath, LogFileDestFullPath, true);
-                        _logger.Info("Log file was copied successfully");
-                        break; // Exit loop if copy is successful
-                    }
-                    catch (IOException ex)
-                    {
-                        // Log the exception if needed
-                        _logger.Error($"<<Error>> Failed to copy log file: {ex.Message}");
+                logMessage.AppendLine($"{property.Name}: {value}");
+            }
 
-                        // Wait for the specified delay before retrying
-                        Thread.Sleep(delay);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"<<Error>> Something went wrong trying to copy the log file. Error: {ex.Message}");
-            }
+            _logger.Info(logMessage.ToString());
         }
     }
 }

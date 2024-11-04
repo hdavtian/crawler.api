@@ -5,6 +5,7 @@ using IC.Test.Playwright.Crawler.Models;
 using IC.Test.Playwright.Crawler.Utility;
 using NLog;
 using System.Text;
+using Microsoft.Extensions.Configuration;
 
 namespace CrawlerWebApi.Services
 {
@@ -14,17 +15,23 @@ namespace CrawlerWebApi.Services
         private readonly DiffDriver _diffDriver;
         private readonly DiffContext _diffContext;
         private readonly Logger _logger;
+        private readonly string _siteArtifactsWinPath;
+        private readonly WriterQueueService _writerQueueService;
 
         public DiffTestService(
             TestModel testModel,
             DiffDriver diffDriver,
-            DiffContext diffContext
+            DiffContext diffContext,
+            IConfiguration configuration,
+            WriterQueueService writerQueueService
             )
         {
             _testModel = testModel;
             _diffDriver = diffDriver;
             _diffContext = diffContext;
             _logger = LogManager.GetCurrentClassLogger();
+            _siteArtifactsWinPath = configuration["SiteArtifactsWinPath"];
+            _writerQueueService = writerQueueService;
         }
 
         public async Task<TestResult> RunDiffTestAsync(DiffTestPostRequestModel request)
@@ -40,7 +47,8 @@ namespace CrawlerWebApi.Services
 
                 // Set values for test model
                 _testModel.Name = "Diff test";
-                _testModel.BaseSaveFolder = PathUtil.CreateSavePath("diff-tests");
+                string diffPathPartial = PathUtil.CreateSavePath("diff-tests");
+                _testModel.BaseSaveFolder = $"{diffPathPartial}__{_testModel.Id}";
                 _testModel.Description = $"Comparing baseline test '{_diffContext.BaseTestSavePath}' and new test '{_diffContext.NewTestSavePath}'";
                 _testModel.DateTime = DateTime.Now;
                 
@@ -99,8 +107,12 @@ namespace CrawlerWebApi.Services
                 TimerUtil.StopTimer(_testModel.Timers, "DiffDuration");
                 _testModel.Duration = TimerUtil.GetElapsedTime(_testModel.Timers, "DiffDuration");
 
-                // Update manifest file
-                ReportWriter.UpdateJsonManifest(@"C:\ictf\diff-tests\tests.json", _testModel);
+                // Update diff manifest
+                await _writerQueueService.EnqueueAsync(async () =>
+                {
+                    string diffTestsManifestFile = Path.Combine(_siteArtifactsWinPath, "diff-tests", "tests.json");
+                    ReportWriter.UpdateJsonManifest(diffTestsManifestFile, _testModel);
+                });
 
                 // copy baseline and newtest manifest files to diff base save for easy access
                 string sourceInfoFile = "test-info.json";
@@ -138,9 +150,9 @@ namespace CrawlerWebApi.Services
             {
                 // copy specflow log file
                 string LogFilePath = @"C:\temp";
-                string LogFileName = "specflow-console.log";
-                string LogFileFullPath = Path.Combine(LogFilePath, LogFileName);
-                string LogFileDestFullPath = Path.Combine(savePath, LogFileName);
+                //string LogFileName = "specflow-console.log";
+                string LogFileFullPath = Path.Combine(LogFilePath, _testModel.LogFileName);
+                string LogFileDestFullPath = Path.Combine(savePath, _testModel.LogFileName);
                 int maxRetries = 5;
                 int delay = 1000; // milliseconds
 

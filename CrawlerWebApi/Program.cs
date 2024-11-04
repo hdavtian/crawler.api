@@ -1,3 +1,4 @@
+using CrawlerWebApi.Services;
 using CrawlerWebApi.signalR;
 using Microsoft.AspNetCore.SignalR;
 using NLog;
@@ -6,20 +7,43 @@ using System.Reflection.Metadata;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Load configuration from 'config/appsettings.json' and environment-specific files
+builder.Configuration
+
+    // Ensure the root directory is used
+    .SetBasePath(Directory.GetCurrentDirectory())
+    
+    // Load main appsettings.json
+    .AddJsonFile("config/appsettings.json", optional: false, reloadOnChange: true)
+    
+    // Load environment-specific settings
+    .AddJsonFile($"config/appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
+    
+    // Optionally load environment variables
+    .AddEnvironmentVariables(); 
+
 // Add services to the container.
 builder.Services.AddControllers();
 
 // Add SignalR service
-builder.Services.AddSignalR();
+builder.Services.AddSignalR(options =>
+{
+    options.ClientTimeoutInterval = TimeSpan.FromMinutes(2); // Time client can remain unresponsive before timeout
+    options.HandshakeTimeout = TimeSpan.FromSeconds(30);     // Maximum time to wait for the initial handshake
+    options.KeepAliveInterval = TimeSpan.FromSeconds(15);    // Frequency of keep-alive messages sent by server
+});
 
 // DI (Dependency Injection)
 builder.Services.AddProjectDependencies();
+
+// Get url from appsettings
+var allowedOrigin = builder.Configuration.GetValue<string>("CorsSettings:AllowedOrigin");
 
 // Add CORS policy
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowSpecificOrigin",
-        builder => builder.WithOrigins("http://localhost:4200") // Allow Angular app on localhost:4200
+        builder => builder.WithOrigins(allowedOrigin)
                           .AllowAnyMethod()
                           .AllowAnyHeader()
                           .AllowCredentials()); // Allow credentials like cookies, headers, etc.
@@ -31,6 +55,16 @@ builder.Services.AddSwaggerGen();
 
 // Load NLog configuration
 NLog.LogManager.Setup().LoadConfigurationFromFile("nlog.config");
+
+// -
+// --
+// ---
+// ----
+// ----- Build
+// ----
+// ---
+// --
+// -
 
 var app = builder.Build();
 
