@@ -235,7 +235,7 @@ namespace CrawlerWebApi.Services
                     
                     if (captureAppHtml)
                     {
-                        ReportWriter.SaveReport(_crawlContext.AppMarkups, _testModel.BaseSaveFolder, "app-markup");
+                        ReportWriter.SaveReport(_crawlContext.AppMarkups, _testModel.BaseSaveFolder, "app-html");
                         _logger.Info("Captured App Html log reports saved successfully.");
                     }
 

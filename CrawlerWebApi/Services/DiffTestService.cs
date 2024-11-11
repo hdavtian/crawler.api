@@ -79,7 +79,7 @@ namespace CrawlerWebApi.Services
                 // ----------------------------------------------------
                 string dotFileType = ".html";
                 string subDirPath = "app-html";
-                string jsonFile = "app-markup.json";
+                string jsonFile = "app-html.json";
                 bool ignoreTextContent = true;
                 string baseJsonFilePath = Path.Combine(_diffContext.BaseTestSavePath, jsonFile);
                 string newJsonFilePath = Path.Combine(_diffContext.NewTestSavePath, jsonFile);
