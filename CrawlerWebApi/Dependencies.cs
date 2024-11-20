@@ -18,8 +18,10 @@ public static class Dependencies
         services.AddScoped<DiffContext>();
         services.AddScoped<CrawlDriver>();
         services.AddScoped<CrawlContext>();
+        services.AddScoped<CrawlArtifacts>();
         services.AddScoped<CrawlerCommon>();
         services.AddScoped<AxeHelper>();
+        services.AddScoped<ITestService, TestService>();
         services.AddScoped<IBaselineTestService, BaselineTestService>();
         services.AddScoped<IDiffTestService, DiffTestService>();
         services.AddSingleton<WriterQueueService>();

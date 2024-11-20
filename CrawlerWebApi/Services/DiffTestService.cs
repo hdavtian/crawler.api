@@ -14,6 +14,7 @@ namespace CrawlerWebApi.Services
         private readonly TestModel _testModel;
         private readonly DiffDriver _diffDriver;
         private readonly DiffContext _diffContext;
+        private readonly CrawlArtifacts _crawlArtifacts;
         private readonly Logger _logger;
         private readonly string _siteArtifactsWinPath;
         private readonly WriterQueueService _writerQueueService;
@@ -22,6 +23,7 @@ namespace CrawlerWebApi.Services
             TestModel testModel,
             DiffDriver diffDriver,
             DiffContext diffContext,
+            CrawlArtifacts crawlArtifacts,
             IConfiguration configuration,
             WriterQueueService writerQueueService
             )
@@ -29,6 +31,7 @@ namespace CrawlerWebApi.Services
             _testModel = testModel;
             _diffDriver = diffDriver;
             _diffContext = diffContext;
+            _crawlArtifacts = crawlArtifacts;
             _logger = LogManager.GetCurrentClassLogger();
             _siteArtifactsWinPath = configuration["SiteArtifactsWinPath"];
             _writerQueueService = writerQueueService;
@@ -42,16 +45,267 @@ namespace CrawlerWebApi.Services
 
                 TimerUtil.StartTimer(_testModel.Timers, "DiffDuration");
 
+                // Get paths to save dirs for previously run tests
                 _diffContext.BaseTestSavePath = PathUtil.ReplaceDoubleBackslashes(request.BaseTestPath);
                 _diffContext.NewTestSavePath = PathUtil.ReplaceDoubleBackslashes(request.NewTestPath);
 
                 // Set values for test model
                 _testModel.Name = "Diff test";
-                string diffPathPartial = PathUtil.CreateSavePath("diff-tests");
-                _testModel.BaseSaveFolder = $"{diffPathPartial}__{_testModel.Id}";
+                //string diffPathPartial = PathUtil.CreateSavePath("diff-tests", _testModel.Id.ToString());
+                //_testModel.BaseSaveFolder = $"{diffPathPartial}__{_testModel.Id}";
+                _testModel.BaseSaveFolder = PathUtil.CreateSavePath("diff-tests", _testModel.Id.ToString());
                 _testModel.Description = $"Comparing baseline test '{_diffContext.BaseTestSavePath}' and new test '{_diffContext.NewTestSavePath}'";
                 _testModel.DateTime = DateTime.Now;
-                
+
+                // IMPORTANT!!!!! remove this! For Testing only
+                var guid1 = Guid.Parse("c5ca09f1-21da-4778-9c43-8705c1603dee");
+                var guid2 = Guid.Parse("a790cb2b-cd3c-40d9-b29c-8e61f3a0b523");
+
+                // -
+                // --
+                // ---
+                // ----
+                // -----
+                // Page Screenshot Diff
+                // -----
+                // ----
+                // ---
+                // --
+                // -
+
+                // New page diffing strategy
+
+                // Operation 1: Selecting the correct two files for comparison
+                // First we need to look through files and make sure we select the right two
+                // images between the two tests to compare with each other
+                //
+                // - Load and create objects from 'page-screenshots.json' for both tests and put in arrays
+
+
+                List<PageScreenshot> test1PageScreenshots = await _crawlArtifacts.GetPageScreenshots(guid1);
+                List<PageScreenshot> test2PageScreenshots = await _crawlArtifacts.GetPageScreenshots(guid2);
+
+                // - Loop through baseline test array
+                //   Take first object.UrlModel.Title and search other test array for an object with match
+                //   if no match then log and continue to next record
+                //   If matched on 'Title' then see if it matches Width and Height and FileSize, log if they don't, either way compare
+
+                PageScreenshot test2ps;
+
+                _logger.Info("Starting page screenshot comparison(s)");
+
+                foreach (PageScreenshot test1ps in test1PageScreenshots)
+                {
+                    test2ps = test2PageScreenshots.FirstOrDefault(item => item.UrlModel.Title.Equals(test1ps.UrlModel.Title));
+
+                    if (test2ps != null) {
+                        // titles matched
+                        StringBuilder logText = new StringBuilder();
+                        logText.AppendLine($"Page screenshot of a page with title '{test1ps.UrlModel.Title}' was found in both tests");
+
+                        // compare file sizes and log
+                        if (test1ps.FileSize == test2ps.FileSize)
+                        {
+                            logText.AppendLine($"Both screenshots have the same height: '{test1ps.FileSize}'");
+                        }
+                        else
+                        {
+                            logText.AppendLine($"Screenshots have different files sizes, test1 file size:'{test1ps.FileSize}', test2 file size: '{test2ps.FileSize}'");
+                        }
+
+                        // compare widths and log
+                        if (test1ps.Width == test2ps.Width)
+                        {
+                            logText.AppendLine($"Both screenshots have the same width: '{test1ps.Width}'");
+                        } else
+                        {
+                            logText.AppendLine($"Screenshots have different widths, test1 width:'{test1ps.Width}', test2 width: '{test2ps.Width}'");
+                        }
+
+                        // compare heights and log
+                        if (test1ps.Height == test2ps.Height)
+                        {
+                            logText.AppendLine($"Both screenshots have the same height: '{test1ps.Height}'");
+                        }
+                        else
+                        {
+                            logText.AppendLine($"Screenshots have different heights, test1 height:'{test1ps.Height}', test2 height: '{test2ps.Height}'");
+                        }
+                        _logger.Info(logText.ToString());
+
+                        // ------------------------------------------------
+                        // perform diff operation
+                        // ------------------------------------------------
+                        string img1 = Path.Combine(test1ps.Path, test1ps.FileName);
+                        string img2 = Path.Combine(test2ps.Path, test2ps.FileName);
+                        string diffImg = Path.Combine(_testModel.BaseSaveFolder, "page-screenshots", test1ps.FileName.Split("__")[0] + "__" + Guid.NewGuid() + ".png");
+
+                        // ----------------------
+                        // Diff Page screenshots
+                        // ----------------------
+                        _diffDriver.DiffImages(img1, img2, diffImg, test1ps.UrlModel.Title, null);
+
+                    } else
+                    {
+                        // did not match
+                        // log an error
+                        // @todo: add to errors array
+                        _logger.Error($"Page screenshot of a page with title '{test1ps.UrlModel.Title}' was not found in new test, skipping comparison on this one ...");
+                        continue;
+                    }
+                }
+
+                string pageScreenshotPath = Path.Combine(_testModel.BaseSaveFolder, "page-screenshots");
+                ReportWriter.SaveReport(_diffContext.PageScreenshotDiffs, pageScreenshotPath, "screenshot-diffs");
+
+                // -
+                // --
+                // ---
+                // ----
+                // -----
+                // App Screenshot Diff
+                // -----
+                // ----
+                // ---
+                // --
+                // -
+
+                List<AppArtifactManifest> test1AppArtifacts = await _crawlArtifacts.GetAppArtifacts(guid1);
+                List<AppArtifactManifest> test2AppArtifacts = await _crawlArtifacts.GetAppArtifacts(guid2);
+
+                AppArtifactManifest test2aa;
+
+                _logger.Info("Starting app screenshot comparison(s)");
+
+                foreach (AppArtifactManifest test1aa in test1AppArtifacts)
+                {
+                    StringBuilder logText = new StringBuilder();
+
+                    // Determine if a tabbed app
+                    if (!(bool)test1aa.IsTabbedApp)
+                    {
+                        test2aa = test2AppArtifacts.FirstOrDefault(item => item.AppName.Equals(test1aa.AppName) && item.UrlModel.Title.Equals(test1aa.UrlModel.Title));
+
+                        if (test2aa != null)
+                        {
+                            // 'AppName' and 'Title' (Page title) matched
+                            logText.AppendLine($"Screenshot for app '{test1aa.AppName}' on page '{test1aa.UrlModel.Title}' was found on both tests");
+
+                            // Compare dimensions
+                            if (test1aa.Width == test2aa.Width && test1aa.Height == test2aa.Height)
+                            {
+                                logText.AppendLine($"Web element on both tests had the same dimensions ('{test1aa.Width}px' w x '{test1aa.Height}'px h)");
+                            }
+                            else
+                            {
+                                logText.AppendLine($"Web element had different dimensions from test to test");
+                                logText.AppendLine($"Baseline Test: width: '{test1aa.Width}px' x height: '{test1aa.Height}'px");
+                                logText.AppendLine($"New Test: width: '{test2aa.Width}px' x height: '{test2aa.Height}'px");
+                            }
+
+                            _logger.Info(logText.ToString());
+
+                            // Compare position
+                            if (test1aa.Top == test2aa.Top && test1aa.Left == test2aa.Left)
+                            {
+                                logText.AppendLine($"Web element on both tests had the same position: Top: '{test1aa.Top}px', Left: '{test1aa.Left}px'");
+                            }
+                            else
+                            {
+                                logText.AppendLine($"Web element had different positions from test to test");
+                                logText.AppendLine($"Baseline Test: Top: '{test1aa.Top}px', Left: '{test1aa.Left}px'");
+                                logText.AppendLine($"New Test: Top: '{test2aa.Top}px', Left: '{test2aa.Left}px'");
+                            }
+
+                            _logger.Info(logText.ToString());
+
+                            string img1 = Path.Combine(test1aa.ScreenshotSavePath, test1aa.ScreenshotFileName);
+                            string img2 = Path.Combine(test2aa.ScreenshotSavePath, test2aa.ScreenshotFileName);
+                            string diffImg = Path.Combine(_testModel.BaseSaveFolder, "app-screenshots", test1aa.AppName + "__" + test1aa.Id + ".png");
+
+                            // ----------------------
+                            // Diff App screenshots
+                            // ----------------------
+                            _diffDriver.DiffImages(img1, img2, diffImg, test1aa.UrlModel.Title, test1aa.AppName);
+                        }
+                        else
+                        {
+                            // 'AppName' and 'Title' (Page title) did not match
+                            // log an error and skip
+                            // @todo: add to errors array
+                            logText.AppendLine($"<<Error>>Screenshot for app '{test1aa.AppName}' on page '{test1aa.UrlModel.Title}' was found on baseline but not the new test, skipping comparison on this one ...");
+                            _logger.Error(logText.ToString());
+                            continue;
+                        }
+
+                        // end of is not a tabbed app
+                    } else
+                    {
+                        // Is a tabbed app
+                        test2aa = test2AppArtifacts.FirstOrDefault(item => item.AppName.Equals(test1aa.AppName) && item.TabAppName.Equals(test1aa.TabAppName) && item.UrlModel.Title.Equals(test1aa.UrlModel.Title));
+
+                        if (test2aa != null)
+                        {
+                            // 'AppName' and 'Title' (Page title) matched
+                            logText.AppendLine($"Screenshot for tabbed app '{test1aa.TabAppName}' > '{test1aa.AppName}' on page '{test1aa.UrlModel.Title}' was found on both tests");
+
+                            // Compare dimensions
+                            if (test1aa.Width == test2aa.Width && test1aa.Height == test2aa.Height)
+                            {
+                                logText.AppendLine($"Web element on both tests had the same dimensions: width: '{test1aa.Width}px' x height: '{test1aa.Height}'px");
+                            }
+                            else
+                            {
+                                logText.AppendLine($"Web element had different dimensions from test to test");
+                                logText.AppendLine($"Baseline Test: width: '{test1aa.Width}px' x height: '{test1aa.Height}'px");
+                                logText.AppendLine($"New Test: width: '{test2aa.Width}px' x height: '{test2aa.Height}'px");
+                            }
+
+                            _logger.Info(logText.ToString());
+
+                            // Compare position
+                            if (test1aa.Top == test2aa.Top && test1aa.Left == test2aa.Left)
+                            {
+                                logText.AppendLine($"Web element on both tests had the same position: Top: '{test1aa.Top}px', Left: '{test1aa.Left}px'");
+                            }
+                            else
+                            {
+                                logText.AppendLine($"Web element had different positions from test to test");
+                                logText.AppendLine($"Baseline Test: Top: '{test1aa.Top}px', Left: '{test1aa.Left}px'");
+                                logText.AppendLine($"New Test: Top: '{test2aa.Top}px', Left: '{test2aa.Left}px'");
+                            }
+
+                            _logger.Info(logText.ToString());
+
+                            string img1 = Path.Combine(test1aa.ScreenshotSavePath, test1aa.ScreenshotFileName);
+                            string img2 = Path.Combine(test2aa.ScreenshotSavePath, test2aa.ScreenshotFileName);
+                            string diffImg = Path.Combine(_testModel.BaseSaveFolder, "app-screenshots", test1aa.AppName + "__" + test1aa.TabAppName + "__" + test1aa.Id + ".png");
+
+                            // ----------------------
+                            // Diff App screenshots (Tabbed Apps)
+                            // ----------------------
+                            _diffDriver.DiffImages(img1, img2, diffImg, test1aa.UrlModel.Title, test1aa.AppName + "__" + test1aa.TabAppName);
+                        }
+                        else
+                        {
+                            // 'AppName' and 'Title' (Page title) did not match
+                            // log an error and skip
+                            // @todo: add to errors array
+                            logText.AppendLine($"<<Error>>Screenshot for tabbed app '{test1aa.TabAppName}' > '{test1aa.AppName}' on page '{test1aa.UrlModel.Title}' was found on baseline but not the new test, skipping comparison on this one ...");
+                            _logger.Error(logText.ToString());
+                            continue;
+                        }
+                        // end of it is a tabbed app
+                    }
+                }
+
+                string appScreenshotPath = Path.Combine(_testModel.BaseSaveFolder, "app-screenshots");
+                ReportWriter.SaveReport(_diffContext.AppScreenshotDiffs, appScreenshotPath, "screenshot-diffs");
+
+
+
+                /*
+
                 // ----------------------------------------------------
                 // Compare Page screenshots and create diffs
                 // ----------------------------------------------------
@@ -73,7 +327,7 @@ namespace CrawlerWebApi.Services
                 _diffDriver.DiffImgDirs(BaseTestImgPath, NewTestImgPath, DiffTestImgPath);
                 string appScreenshotPath = Path.Combine(_testModel.BaseSaveFolder, imageDir);
                 ReportWriter.SaveReport(_diffContext.ScreenshotDiffs, appScreenshotPath, "screenshot-diffs");
-                
+
                 // ----------------------------------------------------
                 // Compare App Html markup and create reports
                 // ----------------------------------------------------
@@ -102,6 +356,13 @@ namespace CrawlerWebApi.Services
                 _baseJsonFile = new FileInfo(baseJsonFilePath);
                 _newJsonFile = new FileInfo(newJsonFilePath);
                 await _diffDriver.DiffTextFiles(_baseJsonFile, _newJsonFile, DiffSavePath, ignoreTextContent);
+
+                */
+
+
+
+
+
 
                 // stop timer
                 TimerUtil.StopTimer(_testModel.Timers, "DiffDuration");

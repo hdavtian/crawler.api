@@ -1,6 +1,7 @@
 ﻿using AngleSharp.Dom;
 using CrawlerWebApi.Interfaces;
 using CrawlerWebApi.Models;
+using CrawlerWebApi.Services;
 using IC.Test.Playwright.Crawler.Drivers;
 using IC.Test.Playwright.Crawler.Models;
 using IC.Test.Playwright.Crawler.Utility;
@@ -20,14 +21,17 @@ namespace CrawlerWebApi.Controllers
         private readonly IBaselineTestService _baselineTestService;
         private readonly TestModel _testModel;
         private readonly IDiffTestService _diffTestService;
+        private readonly ITestService _testService;
         private readonly Logger _logger;
 
         public TestController(
+            ITestService testService,
             IBaselineTestService baselineTestService, 
             IDiffTestService diffTestService,
             TestModel testModel)
         {
             _baselineTestService = baselineTestService;
+            _testService = testService;
             _diffTestService = diffTestService;
             _logger = LogManager.GetCurrentClassLogger();
             _testModel = testModel;
@@ -52,7 +56,7 @@ namespace CrawlerWebApi.Controllers
                 try
                 {
                     // For testing purposes; remove these hardcoded values when deploying
-                    /*
+                    
                     request.Url = "https://BostonCommonClientQAUATV4.investcloud.com";
                     request.Username = "client@bostoncommon.com";
                     request.Password = "Mustang.2022";
@@ -68,7 +72,7 @@ namespace CrawlerWebApi.Controllers
                     request.GenerateAxeReports = true;
                     request.CaptureNetworkTraffic = true;
                     request.SaveHar = true;
-                    */
+                    
 
                     // Return the GUID immediately to the front end
                     Response.StatusCode = (int)HttpStatusCode.OK;
@@ -141,6 +145,113 @@ namespace CrawlerWebApi.Controllers
                     _logger.Error(ex, "<<Error>> An error occurred while running the diff test.");
                     return StatusCode(StatusCodes.Status500InternalServerError, $"An error occurred: {ex.Message}");
                 }
+            }
+        }
+
+        /// <summary>
+        /// Get a specific crawl test by GUID.
+        /// </summary>
+        /// <param name="guid">The GUID of the crawl test to retrieve.</param>
+        /// <returns>The crawl test if found; otherwise, appropriate error response.</returns>
+        [HttpGet("crawl-test/{guid}")]
+        public async Task<IActionResult> GetCrawlTest(string guid)
+        {
+            if (string.IsNullOrWhiteSpace(guid))
+                return BadRequest(new { message = "Guid parameter cannot be null or empty." });
+
+            try
+            {
+                var testModel = await _testService.GetCrawlTestAsync(guid);
+
+                if (testModel == null)
+                {
+                    return NotFound(new { message = "Crawl test not found for the provided GUID." });
+                }
+
+                return Ok(testModel);
+            }
+            catch (ArgumentException ex)
+            {
+                // Direct ArgumentException
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                // Check for wrapped exceptions
+                var errorMessage = ex.InnerException != null
+                    ? ex.InnerException.Message
+                    : ex.Message;
+
+                _logger.Error(ex, "<<Error>> An error occurred while running the baseline test.");
+                return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
+            }
+        }
+
+        [HttpGet("crawl-test/page-screenshots/{guid}")]
+        public async Task<IActionResult> GetCrawlTestPageScreenshots(string guid)
+        {
+            if (string.IsNullOrWhiteSpace(guid))
+                return BadRequest(new { message = "Guid parameter cannot be null or empty." });
+
+            try
+            {
+                var pageScreenshots = await _testService.GetPageScreenshotsAsync(guid);
+
+                if (pageScreenshots == null)
+                {
+                    return NotFound(new { message = "Crawl test not found for the provided GUID." });
+                }
+
+                return Ok(pageScreenshots);
+            }
+            catch (ArgumentException ex)
+            {
+                // Direct ArgumentException
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                // Check for wrapped exceptions
+                var errorMessage = ex.InnerException != null
+                    ? ex.InnerException.Message
+                    : ex.Message;
+
+                _logger.Error(ex, "<<Error>> An error occurred while running the baseline test.");
+                return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
+            }
+        }
+
+        [HttpGet("crawl-test/app-screenshots/{guid}")]
+        public async Task<IActionResult> GetCrawlTestAppScreenshots(string guid)
+        {
+            if (string.IsNullOrWhiteSpace(guid))
+                return BadRequest(new { message = "Guid parameter cannot be null or empty." });
+
+            try
+            {
+                var appScreenshots = await _testService.GetAppScreenshotsAsync(guid);
+
+                if (appScreenshots == null)
+                {
+                    return NotFound(new { message = "Crawl test not found for the provided GUID." });
+                }
+
+                return Ok(appScreenshots);
+            }
+            catch (ArgumentException ex)
+            {
+                // Direct ArgumentException
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                // Check for wrapped exceptions
+                var errorMessage = ex.InnerException != null
+                    ? ex.InnerException.Message
+                    : ex.Message;
+
+                _logger.Error(ex, "<<Error>> An error occurred while running the baseline test.");
+                return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
             }
         }
     }
