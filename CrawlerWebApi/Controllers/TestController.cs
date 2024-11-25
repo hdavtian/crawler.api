@@ -254,5 +254,39 @@ namespace CrawlerWebApi.Controllers
                 return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
             }
         }
+
+        [HttpGet("crawl-test/urls/{guid}")]
+        public async Task<IActionResult> GetCrawledUrls(string guid)
+        {
+            if (string.IsNullOrWhiteSpace(guid))
+                return BadRequest(new { message = "Guid parameter cannot be null or empty." });
+
+            try
+            {
+                var items = await _testService.GetCrawledUrlsAsync(guid);
+
+                if (items == null)
+                {
+                    return NotFound(new { message = "Crawl test urls not found for the provided GUID." });
+                }
+
+                return Ok(items);
+            }
+            catch (ArgumentException ex)
+            {
+                // Direct ArgumentException
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                // Check for wrapped exceptions
+                var errorMessage = ex.InnerException != null
+                    ? ex.InnerException.Message
+                    : ex.Message;
+
+                _logger.Error(ex, "<<Error>> An error occurred trying to get crawled urls for baseline test.");
+                return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
+            }
+        }
     }
 }

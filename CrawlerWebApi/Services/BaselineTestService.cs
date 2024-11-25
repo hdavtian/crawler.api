@@ -230,6 +230,13 @@ namespace CrawlerWebApi.Services
                         _logger.Info("Network log reports saved successfully.");
                     }
 
+                    // Add totals to TestModel to be included in manifest and test-info.json files
+                    _testModel.UrlTotal = _crawlContext.VisitedUrls.Count;
+                    _testModel.AppsUniqueTotal = ReportWriter.GetUniqueAppTotal(_crawlContext.IcWebPages);
+                    _testModel.AppsTotal = ReportWriter.GetAllAppsTotal(_crawlContext.IcWebPages);
+                    _testModel.PageScreenshotsTotal = _crawlContext.PageScreenshots.Count;
+                    _testModel.AppScreenshotsTotal = _crawlContext.AppScreenshots.Count;
+
                     ReportWriter.SaveModelAsJsonFile(_testModel, _testModel.BaseSaveFolder, "test-info");
                     ReportWriter.SaveReport(_crawlContext.VisitedUrls, _testModel.BaseSaveFolder, "urls");
                     

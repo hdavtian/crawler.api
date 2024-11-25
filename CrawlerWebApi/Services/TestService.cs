@@ -36,5 +36,10 @@ namespace CrawlerWebApi.Services
         {
             return await _crawlerArtifacts.GetAppScreenshots(Guid.Parse(guid));
         }
+
+        public async Task<List<UrlModel>> GetCrawledUrlsAsync(string guid)
+        {
+            return await _crawlerArtifacts.GetCrawledUrls(Guid.Parse(guid));
+        }
     }
 }

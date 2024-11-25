@@ -4,6 +4,9 @@ using Microsoft.AspNetCore.SignalR;
 using NLog;
 using NLog.Web;
 using System.Reflection.Metadata;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Newtonsoft.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,7 +26,21 @@ builder.Configuration
     .AddEnvironmentVariables(); 
 
 // Add services to the container.
-builder.Services.AddControllers();
+// Following options will enfore serialization of json data with pascal casing
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // Configure System.Text.Json to use PascalCase
+        options.JsonSerializerOptions.PropertyNamingPolicy = null;
+    })
+    .AddNewtonsoftJson(options =>
+    {
+        // Configure Newtonsoft.Json to use PascalCase
+        options.SerializerSettings.ContractResolver = new DefaultContractResolver
+        {
+            NamingStrategy = null // Keep PascalCase
+        };
+    });
 
 // Add SignalR service
 builder.Services.AddSignalR(options =>
