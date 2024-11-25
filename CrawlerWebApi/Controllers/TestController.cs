@@ -56,7 +56,7 @@ namespace CrawlerWebApi.Controllers
                 try
                 {
                     // For testing purposes; remove these hardcoded values when deploying
-                    
+                    /*
                     request.Url = "https://BostonCommonClientQAUATV4.investcloud.com";
                     request.Username = "client@bostoncommon.com";
                     request.Password = "Mustang.2022";
@@ -72,7 +72,7 @@ namespace CrawlerWebApi.Controllers
                     request.GenerateAxeReports = true;
                     request.CaptureNetworkTraffic = true;
                     request.SaveHar = true;
-                    
+                    */
 
                     // Return the GUID immediately to the front end
                     Response.StatusCode = (int)HttpStatusCode.OK;
@@ -183,6 +183,37 @@ namespace CrawlerWebApi.Controllers
                     : ex.Message;
 
                 _logger.Error(ex, "<<Error>> An error occurred while running the baseline test.");
+                return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
+            }
+        }
+
+        [HttpGet("crawl-tests/")]
+        public async Task<IActionResult> GetCrawlTests()
+        {
+            try
+            {
+                var tests = await _testService.GetCrawlTestsAsync();
+
+                if (tests == null)
+                {
+                    return NotFound(new { message = "Crawl tests not found" });
+                }
+
+                return Ok(tests);
+            }
+            catch (ArgumentException ex)
+            {
+                // Direct ArgumentException
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                // Check for wrapped exceptions
+                var errorMessage = ex.InnerException != null
+                    ? ex.InnerException.Message
+                    : ex.Message;
+
+                _logger.Error(ex, "<<Error>> An error occurred while trying to get a list of all crawl tests.");
                 return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
             }
         }
