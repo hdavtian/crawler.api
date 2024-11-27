@@ -56,7 +56,7 @@ namespace CrawlerWebApi.Controllers
                 try
                 {
                     // For testing purposes; remove these hardcoded values when deploying
-                    /*
+                    
                     request.Url = "https://BostonCommonClientQAUATV4.investcloud.com";
                     request.Username = "client@bostoncommon.com";
                     request.Password = "Mustang.2022";
@@ -72,7 +72,7 @@ namespace CrawlerWebApi.Controllers
                     request.GenerateAxeReports = true;
                     request.CaptureNetworkTraffic = true;
                     request.SaveHar = true;
-                    */
+                    
 
                     // Return the GUID immediately to the front end
                     Response.StatusCode = (int)HttpStatusCode.OK;
@@ -316,6 +316,74 @@ namespace CrawlerWebApi.Controllers
                     : ex.Message;
 
                 _logger.Error(ex, "<<Error>> An error occurred trying to get crawled urls for baseline test.");
+                return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
+            }
+        }
+
+        [HttpGet("crawl-test/page-app-summary/{guid}")]
+        public async Task<IActionResult> GetPageAppSummary(string guid)
+        {
+            if (string.IsNullOrWhiteSpace(guid))
+                return BadRequest(new { message = "Guid parameter cannot be null or empty." });
+
+            try
+            {
+                var items = await _testService.GetPageAndAppSummaryAsync(guid);
+
+                if (items == null)
+                {
+                    return NotFound(new { message = "Crawl test page and app summary not found for the provided GUID." });
+                }
+
+                return Ok(items);
+            }
+            catch (ArgumentException ex)
+            {
+                // Direct ArgumentException
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                // Check for wrapped exceptions
+                var errorMessage = ex.InnerException != null
+                    ? ex.InnerException.Message
+                    : ex.Message;
+
+                _logger.Error(ex, "<<Error>> An error occurred trying to get page and app summary for baseline test.");
+                return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
+            }
+        }
+
+        [HttpGet("crawl-test/app-artifacts/{guid}")]
+        public async Task<IActionResult> GetAppArtifacts(string guid)
+        {
+            if (string.IsNullOrWhiteSpace(guid))
+                return BadRequest(new { message = "Guid parameter cannot be null or empty." });
+
+            try
+            {
+                var items = await _testService.GetAppArtifactsAsync(guid);
+
+                if (items == null)
+                {
+                    return NotFound(new { message = "Crawl test app artifacts not found for the provided GUID." });
+                }
+
+                return Ok(items);
+            }
+            catch (ArgumentException ex)
+            {
+                // Direct ArgumentException
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                // Check for wrapped exceptions
+                var errorMessage = ex.InnerException != null
+                    ? ex.InnerException.Message
+                    : ex.Message;
+
+                _logger.Error(ex, "<<Error>> An error occurred trying to get app artifacts for baseline test.");
                 return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
             }
         }

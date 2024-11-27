@@ -86,7 +86,7 @@ namespace CrawlerWebApi.Services
                     _testModel.Browser.Width = windowWidth;
                     _testModel.Browser.Height = windowHeight;
                     string projectNameSubdomain = UrlUtil.GetSubdomainFromUrl(url).ToLower();
-                    _testModel.BaseSaveFolder = PathUtil.CreateSavePath("crawl-tests", projectNameSubdomain, projectNameSubdomain, windowWidth, windowHeight, _testModel.Id.ToString());
+                    _testModel.BaseSaveFolder = PathUtil.CreateSavePath("crawl-tests", projectNameSubdomain, windowWidth, windowHeight, _testModel.Id.ToString());
                     _logger.Info("Test model set up successfully.");
                     _logger.Info($"BaseSaveFolder: {_testModel.BaseSaveFolder}");
                 }

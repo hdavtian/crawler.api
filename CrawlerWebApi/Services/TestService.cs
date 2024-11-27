@@ -46,6 +46,14 @@ namespace CrawlerWebApi.Services
             return await _crawlerArtifacts.GetCrawledUrls(Guid.Parse(guid));
         }
 
-        
+        public async Task<List<IcPage>> GetPageAndAppSummaryAsync(string guid)
+        {
+            return await _crawlerArtifacts.GetPageAndAppSummary(Guid.Parse(guid));
+        }
+
+        public async Task<List<AppArtifactManifest>> GetAppArtifactsAsync(string guid)
+        {
+            return await _crawlerArtifacts.GetAppArtifacts(Guid.Parse(guid));
+        }
     }
 }
