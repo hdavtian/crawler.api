@@ -7,6 +7,7 @@ using NLog;
 using System.Text;
 using Microsoft.Extensions.Configuration;
 using DiffPlex;
+using System;
 
 namespace CrawlerWebApi.Services
 {
@@ -46,21 +47,24 @@ namespace CrawlerWebApi.Services
 
                 TimerUtil.StartTimer(_testModel.Timers, "DiffDuration");
 
-                // Get paths to save dirs for previously run tests
-                _diffContext.BaseTestSavePath = PathUtil.ReplaceDoubleBackslashes(request.BaseTestPath);
-                _diffContext.NewTestSavePath = PathUtil.ReplaceDoubleBackslashes(request.NewTestPath);
+                string baseTestGuidStr = request.BaseTestId!.ToString();
+                string newTestGuidStr = request.NewTestId!.ToString();
+
+                var baseTestGuid = Guid.Parse(baseTestGuidStr);
+                var newTestGuid = Guid.Parse(newTestGuidStr);
+
+                var baseTest = await _crawlArtifacts.GetCrawlTestAsync(baseTestGuidStr);
+                var newTest = await _crawlArtifacts.GetCrawlTestAsync(newTestGuidStr);
+
+                // these paths will be used to copy some files later later
+                _diffContext.BaseTestSavePath = baseTest.BaseSaveFolder;
+                _diffContext.NewTestSavePath = newTest.BaseSaveFolder;
 
                 // Set values for test model
                 _testModel.Name = "Diff test";
-                //string diffPathPartial = PathUtil.CreateSavePath("diff-tests", _testModel.Id.ToString());
-                //_testModel.BaseSaveFolder = $"{diffPathPartial}__{_testModel.Id}";
                 _testModel.BaseSaveFolder = PathUtil.CreateSavePath("diff-tests", _testModel.Id.ToString());
                 _testModel.Description = $"Comparing baseline test '{_diffContext.BaseTestSavePath}' and new test '{_diffContext.NewTestSavePath}'";
                 _testModel.DateTime = DateTime.Now;
-
-                // IMPORTANT!!!!! remove this! For Testing only
-                var guid1 = Guid.Parse("c5ca09f1-21da-4778-9c43-8705c1603dee");
-                var guid2 = Guid.Parse("a790cb2b-cd3c-40d9-b29c-8e61f3a0b523");
 
                 // -
                 // --
@@ -82,9 +86,8 @@ namespace CrawlerWebApi.Services
                 //
                 // - Load and create objects from 'page-screenshots.json' for both tests and put in arrays
 
-
-                List<PageScreenshot> test1PageScreenshots = await _crawlArtifacts.GetPageScreenshots(guid1);
-                List<PageScreenshot> test2PageScreenshots = await _crawlArtifacts.GetPageScreenshots(guid2);
+                List<PageScreenshot> test1PageScreenshots = await _crawlArtifacts.GetPageScreenshots(baseTestGuid);
+                List<PageScreenshot> test2PageScreenshots = await _crawlArtifacts.GetPageScreenshots(newTestGuid);
 
                 // - Loop through baseline test array
                 //   Take first object.UrlModel.Title and search other test array for an object with match
@@ -168,8 +171,8 @@ namespace CrawlerWebApi.Services
                 // --
                 // -
 
-                List<AppArtifactManifest> test1AppArtifacts = await _crawlArtifacts.GetAppArtifacts(guid1);
-                List<AppArtifactManifest> test2AppArtifacts = await _crawlArtifacts.GetAppArtifacts(guid2);
+                List<AppArtifactManifest> test1AppArtifacts = await _crawlArtifacts.GetAppArtifacts(baseTestGuid);
+                List<AppArtifactManifest> test2AppArtifacts = await _crawlArtifacts.GetAppArtifacts(newTestGuid);
 
                 AppArtifactManifest test2aa;
 
@@ -183,13 +186,13 @@ namespace CrawlerWebApi.Services
 
                     if ((bool)test1aa.IsTabbedApp)
                     {
-                        test2aa = test2AppArtifacts.FirstOrDefault(item => item.AppName.Equals(test1aa.AppName) && item.TabAppName.Equals(test1aa.TabAppName) && item.UrlModel.Title.Equals(test1aa.UrlModel.Title));
+                        test2aa = test2AppArtifacts.FirstOrDefault(item => item.AppName.Equals(test1aa.AppName) && item.TabApp.UniqueTabName.Equals(test1aa.TabApp.UniqueTabName) && item.UrlModel.Title.Equals(test1aa.UrlModel.Title));
                         if (test2aa == null)
                         {
-                            _logger.Error($"<<Error>>Screenshot for app '{test1aa.AppName}' > '{test1aa.TabAppName}' on page '{test1aa.UrlModel.Title}' was found on baseline but not the new test, skipping comparison on this one ...");
+                            _logger.Error($"<<Error>>Screenshot for app '{test1aa.AppName}' > '{test1aa.TabApp.UniqueTabName}' on page '{test1aa.UrlModel.Title}' was found on baseline but not the new test, skipping comparison on this one ...");
                             continue;
                         }
-                        _appNameSlug = test1aa.AppName + "__" + test1aa.TabAppName + "__" + test1aa.Id;
+                        _appNameSlug = test1aa.AppName + "__" + test1aa.TabApp.UniqueTabName + "__" + test1aa.Id;
                     }
                     else
                     {
@@ -244,16 +247,16 @@ namespace CrawlerWebApi.Services
                     // ----------------------
                     // Diff App html
                     // ---------------------- 
-                    AppHtml app1Html = await _crawlArtifacts.GetAppHTML(guid1, test1aa.HtmlFileName);
-                    AppHtml app2Html = await _crawlArtifacts.GetAppHTML(guid2, test2aa.HtmlFileName);
+                    AppHtml app1Html = await _crawlArtifacts.GetAppHTML(baseTestGuid, test1aa.HtmlFileName);
+                    AppHtml app2Html = await _crawlArtifacts.GetAppHTML(newTestGuid, test2aa.HtmlFileName);
                     string DiffSavePath = Path.Combine(_testModel.BaseSaveFolder, "app-html");
                     await _diffDriver.DiffHtml(app1Html, app2Html, DiffSavePath, _appNameSlug + ".html", true);
 
                     // ----------------------
                     // Diff App text
                     // ---------------------- 
-                    AppText app1Text = await _crawlArtifacts.GetAppText(guid1, test1aa.TextFileName);
-                    AppText app2Text = await _crawlArtifacts.GetAppText(guid2, test2aa.TextFileName);
+                    AppText app1Text = await _crawlArtifacts.GetAppText(baseTestGuid, test1aa.TextFileName);
+                    AppText app2Text = await _crawlArtifacts.GetAppText(newTestGuid, test2aa.TextFileName);
                     string TextDiffSavePath = Path.Combine(_testModel.BaseSaveFolder, "app-html");
                     await _diffDriver.DiffText(app1Text, app2Text, TextDiffSavePath, _appNameSlug + ".html", false);
                 }
