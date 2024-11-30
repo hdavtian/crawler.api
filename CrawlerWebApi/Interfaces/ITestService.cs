@@ -5,8 +5,8 @@ namespace CrawlerWebApi.Interfaces
 {
     public interface ITestService
     {
-        Task<List<TestModel>> GetCrawlTestsAsync();
-        Task<TestModel> GetCrawlTestAsync(string Guid);
+        Task<List<CrawlTest>> GetCrawlTestsAsync();
+        Task<CrawlTest> GetCrawlTestAsync(string Guid);
         Task<List<PageScreenshot>> GetPageScreenshotsAsync(string Guid);
         Task<List<AppScreenshot>> GetAppScreenshotsAsync(string Guid);
         Task<List<UrlModel>> GetCrawledUrlsAsync(string Guid);

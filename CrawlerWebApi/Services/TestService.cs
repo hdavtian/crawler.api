@@ -9,51 +9,51 @@ namespace CrawlerWebApi.Services
 {
     public class TestService : ITestService
     {
-        private readonly IConfiguration _configuration;
-        private readonly string _siteArtifactsWinPath;
-        private readonly CrawlArtifacts _crawlerArtifacts;
+        private readonly IConfiguration AppConfiguration;
+        private readonly string SiteArtifactsWinPath;
+        private readonly CrawlArtifacts CrawlerArtifacts;
 
         public TestService(
-            IConfiguration configuration,
-            CrawlArtifacts crawlerArtifacts)
+            IConfiguration AppConfiguration,
+            CrawlArtifacts CrawlerArtifacts)
         {
-            _configuration = configuration;
-            _siteArtifactsWinPath = _configuration.GetValue<string>("SiteArtifactsWinPath");
-            _crawlerArtifacts = crawlerArtifacts;
+            this.AppConfiguration = AppConfiguration;
+            SiteArtifactsWinPath = this.AppConfiguration.GetValue<string>("SiteArtifactsWinPath");
+            this.CrawlerArtifacts = CrawlerArtifacts;
         }
 
-        public async Task<TestModel> GetCrawlTestAsync(string guid)
+        public async Task<CrawlTest> GetCrawlTestAsync(string guid)
         {
-            return await _crawlerArtifacts.GetCrawlTestAsync(guid);
+            return await CrawlerArtifacts.GetCrawlTestAsync(guid);
         }
-        public async Task<List<TestModel>> GetCrawlTestsAsync()
+        public async Task<List<CrawlTest>> GetCrawlTestsAsync()
         {
-            return await _crawlerArtifacts.GetCrawlTestsAsync();
+            return await CrawlerArtifacts.GetCrawlTestsAsync();
         }
 
         public async Task<List<PageScreenshot>> GetPageScreenshotsAsync(string guid)
         {
-            return await _crawlerArtifacts.GetPageScreenshots(Guid.Parse(guid));
+            return await CrawlerArtifacts.GetPageScreenshots(Guid.Parse(guid));
         }
 
         public async Task<List<AppScreenshot>> GetAppScreenshotsAsync(string guid)
         {
-            return await _crawlerArtifacts.GetAppScreenshots(Guid.Parse(guid));
+            return await CrawlerArtifacts.GetAppScreenshots(Guid.Parse(guid));
         }
 
         public async Task<List<UrlModel>> GetCrawledUrlsAsync(string guid)
         {
-            return await _crawlerArtifacts.GetCrawledUrls(Guid.Parse(guid));
+            return await CrawlerArtifacts.GetCrawledUrls(Guid.Parse(guid));
         }
 
         public async Task<List<IcPage>> GetPageAndAppSummaryAsync(string guid)
         {
-            return await _crawlerArtifacts.GetPageAndAppSummary(Guid.Parse(guid));
+            return await CrawlerArtifacts.GetPageAndAppSummary(Guid.Parse(guid));
         }
 
         public async Task<List<AppArtifactManifest>> GetAppArtifactsAsync(string guid)
         {
-            return await _crawlerArtifacts.GetAppArtifacts(Guid.Parse(guid));
+            return await CrawlerArtifacts.GetAppArtifacts(Guid.Parse(guid));
         }
     }
 }

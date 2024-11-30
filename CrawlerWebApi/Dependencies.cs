@@ -12,7 +12,8 @@ public static class Dependencies
     public static IServiceCollection AddProjectDependencies(this IServiceCollection services)
     {
         // Register instance-based dependencies
-        services.AddScoped<TestModel>();
+        services.AddScoped<CrawlTest>();
+        services.AddScoped<DiffTest>();
         services.AddScoped<LoginDriver>();
         services.AddScoped<DiffDriver>();
         services.AddScoped<DiffContext>();

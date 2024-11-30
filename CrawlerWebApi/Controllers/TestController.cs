@@ -18,23 +18,26 @@ namespace CrawlerWebApi.Controllers
     [ApiController]
     public class TestController : ControllerBase
     {
-        private readonly IBaselineTestService _baselineTestService;
-        private readonly TestModel _testModel;
-        private readonly IDiffTestService _diffTestService;
-        private readonly ITestService _testService;
-        private readonly Logger _logger;
+        private readonly IBaselineTestService BaselineTestService;
+        private readonly CrawlTest CrawlTest;
+        private readonly DiffTest DiffTest;
+        private readonly IDiffTestService DiffTestService;
+        private readonly ITestService TestService;
+        private readonly Logger Logger;
 
         public TestController(
             ITestService testService,
             IBaselineTestService baselineTestService, 
             IDiffTestService diffTestService,
-            TestModel testModel)
+            CrawlTest testModel,
+            DiffTest diffTest)
         {
-            _baselineTestService = baselineTestService;
-            _testService = testService;
-            _diffTestService = diffTestService;
-            _logger = LogManager.GetCurrentClassLogger();
-            _testModel = testModel;
+            BaselineTestService = baselineTestService;
+            TestService = testService;
+            DiffTestService = diffTestService;
+            Logger = LogManager.GetCurrentClassLogger();
+            CrawlTest = testModel;
+            DiffTest = diffTest;
         }
 
         [HttpPost("baseline")]
@@ -47,11 +50,11 @@ namespace CrawlerWebApi.Controllers
 
             // Generate a unique TestId (GUID) to be used in creating a unique log file per test (for concurrency)
             var testGuid = Guid.NewGuid();
-            _testModel.Id = testGuid;
-            _testModel.LogFileName = $"crawl-{testGuid}.log";
+            CrawlTest.Id = testGuid;
+            CrawlTest.LogFileName = $"crawl-{testGuid}.log";
 
-            using (_logger.PushScopeProperty("TestType", "crawl"))
-            using (_logger.PushScopeProperty("TestId", testGuid))
+            using (Logger.PushScopeProperty("TestType", "crawl"))
+            using (Logger.PushScopeProperty("TestId", testGuid))
             {
                 try
                 {
@@ -81,15 +84,15 @@ namespace CrawlerWebApi.Controllers
                     // Continue running the test in the background
                     _ = Task.Run(async () =>
                     {
-                        var result = await _baselineTestService.RunBaselineTestAsync(request);
+                        var result = await BaselineTestService.RunBaselineTestAsync(request);
 
                         if (result.Success)
                         {
-                            _logger.Info("Crawl operation completed successfully");
+                            Logger.Info("Crawl operation completed successfully");
                         }
                         else
                         {
-                            _logger.Error($"<<Error>> Test run failed: {result.ErrorMessage}");
+                            Logger.Error($"<<Error>> Test run failed: {result.ErrorMessage}");
                         }
                     });
 
@@ -98,7 +101,7 @@ namespace CrawlerWebApi.Controllers
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error(ex, "<<Error>> An error occurred while running the baseline test.");
+                    Logger.Error(ex, "<<Error>> An error occurred while running the baseline test.");
                     return StatusCode(StatusCodes.Status500InternalServerError, $"An error occurred: {ex.Message}");
                 }
             }
@@ -115,11 +118,11 @@ namespace CrawlerWebApi.Controllers
             // Generate a unique TestId (GUID) to be used in creating a unique log file per test (for concurrency)
             var testGuid = Guid.NewGuid();
             // Set testModel.Id to generated guid 
-            _testModel.Id = testGuid;
-            _testModel.LogFileName = $"diff-{testGuid}.log";
+            CrawlTest.Id = testGuid;
+            CrawlTest.LogFileName = $"diff-{testGuid}.log";
 
-            using (_logger.PushScopeProperty("TestType", "diff"))
-            using (_logger.PushScopeProperty("TestId", testGuid))
+            using (Logger.PushScopeProperty("TestType", "diff"))
+            using (Logger.PushScopeProperty("TestId", testGuid))
             {
                 try
                 {
@@ -131,7 +134,7 @@ namespace CrawlerWebApi.Controllers
                     //request.BaseTestPath = @"C:\ictf\crawl-tests\hcglobalpre1\hcglobalpre1\09-25-2024__10-50-26-AM__1440x800";
                     //request.NewTestPath = @"C:\ictf\crawl-tests\hcglobalpre1\hcglobalpre1\09-25-2024__02-28-08-PM__1440x800";
 
-                    var result = await _diffTestService.RunDiffTestAsync(request);
+                    var result = await DiffTestService.RunDiffTestAsync(request);
 
                     if (result.Success)
                     {
@@ -142,7 +145,7 @@ namespace CrawlerWebApi.Controllers
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error(ex, "<<Error>> An error occurred while running the diff test.");
+                    Logger.Error(ex, "<<Error>> An error occurred while running the diff test.");
                     return StatusCode(StatusCodes.Status500InternalServerError, $"An error occurred: {ex.Message}");
                 }
             }
@@ -161,7 +164,7 @@ namespace CrawlerWebApi.Controllers
 
             try
             {
-                var testModel = await _testService.GetCrawlTestAsync(guid);
+                var testModel = await TestService.GetCrawlTestAsync(guid);
 
                 if (testModel == null)
                 {
@@ -182,7 +185,7 @@ namespace CrawlerWebApi.Controllers
                     ? ex.InnerException.Message
                     : ex.Message;
 
-                _logger.Error(ex, "<<Error>> An error occurred while running the baseline test.");
+                Logger.Error(ex, "<<Error>> An error occurred while running the baseline test.");
                 return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
             }
         }
@@ -192,7 +195,7 @@ namespace CrawlerWebApi.Controllers
         {
             try
             {
-                var tests = await _testService.GetCrawlTestsAsync();
+                var tests = await TestService.GetCrawlTestsAsync();
 
                 if (tests == null)
                 {
@@ -213,7 +216,7 @@ namespace CrawlerWebApi.Controllers
                     ? ex.InnerException.Message
                     : ex.Message;
 
-                _logger.Error(ex, "<<Error>> An error occurred while trying to get a list of all crawl tests.");
+                Logger.Error(ex, "<<Error>> An error occurred while trying to get a list of all crawl tests.");
                 return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
             }
         }
@@ -226,7 +229,7 @@ namespace CrawlerWebApi.Controllers
 
             try
             {
-                var pageScreenshots = await _testService.GetPageScreenshotsAsync(guid);
+                var pageScreenshots = await TestService.GetPageScreenshotsAsync(guid);
 
                 if (pageScreenshots == null)
                 {
@@ -247,7 +250,7 @@ namespace CrawlerWebApi.Controllers
                     ? ex.InnerException.Message
                     : ex.Message;
 
-                _logger.Error(ex, "<<Error>> An error occurred while running the baseline test.");
+                Logger.Error(ex, "<<Error>> An error occurred while running the baseline test.");
                 return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
             }
         }
@@ -260,7 +263,7 @@ namespace CrawlerWebApi.Controllers
 
             try
             {
-                var appScreenshots = await _testService.GetAppScreenshotsAsync(guid);
+                var appScreenshots = await TestService.GetAppScreenshotsAsync(guid);
 
                 if (appScreenshots == null)
                 {
@@ -281,7 +284,7 @@ namespace CrawlerWebApi.Controllers
                     ? ex.InnerException.Message
                     : ex.Message;
 
-                _logger.Error(ex, "<<Error>> An error occurred while running the baseline test.");
+                Logger.Error(ex, "<<Error>> An error occurred while running the baseline test.");
                 return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
             }
         }
@@ -294,7 +297,7 @@ namespace CrawlerWebApi.Controllers
 
             try
             {
-                var items = await _testService.GetCrawledUrlsAsync(guid);
+                var items = await TestService.GetCrawledUrlsAsync(guid);
 
                 if (items == null)
                 {
@@ -315,7 +318,7 @@ namespace CrawlerWebApi.Controllers
                     ? ex.InnerException.Message
                     : ex.Message;
 
-                _logger.Error(ex, "<<Error>> An error occurred trying to get crawled urls for baseline test.");
+                Logger.Error(ex, "<<Error>> An error occurred trying to get crawled urls for baseline test.");
                 return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
             }
         }
@@ -328,7 +331,7 @@ namespace CrawlerWebApi.Controllers
 
             try
             {
-                var items = await _testService.GetPageAndAppSummaryAsync(guid);
+                var items = await TestService.GetPageAndAppSummaryAsync(guid);
 
                 if (items == null)
                 {
@@ -349,7 +352,7 @@ namespace CrawlerWebApi.Controllers
                     ? ex.InnerException.Message
                     : ex.Message;
 
-                _logger.Error(ex, "<<Error>> An error occurred trying to get page and app summary for baseline test.");
+                Logger.Error(ex, "<<Error>> An error occurred trying to get page and app summary for baseline test.");
                 return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
             }
         }
@@ -362,7 +365,7 @@ namespace CrawlerWebApi.Controllers
 
             try
             {
-                var items = await _testService.GetAppArtifactsAsync(guid);
+                var items = await TestService.GetAppArtifactsAsync(guid);
 
                 if (items == null)
                 {
@@ -383,7 +386,7 @@ namespace CrawlerWebApi.Controllers
                     ? ex.InnerException.Message
                     : ex.Message;
 
-                _logger.Error(ex, "<<Error>> An error occurred trying to get app artifacts for baseline test.");
+                Logger.Error(ex, "<<Error>> An error occurred trying to get app artifacts for baseline test.");
                 return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
             }
         }

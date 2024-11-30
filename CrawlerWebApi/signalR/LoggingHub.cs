@@ -7,7 +7,15 @@ namespace CrawlerWebApi.signalR
     {
         public async Task SendLogMessage(string message)
         {
-            await Clients.All.SendAsync("ReceiveLogMessage", message);
+            try
+            {
+                await Clients.All.SendAsync("ReceiveLogMessage", message);
+            }
+            catch (Exception ex)
+            {
+                // Log exception (e.g., using NLog)
+                Console.WriteLine($"Error sending log message: {ex.Message}");
+            }
         }
     }
 }

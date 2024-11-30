@@ -13,39 +13,39 @@ namespace CrawlerWebApi.Services
 {
     public class DiffTestService : IDiffTestService
     {
-        private readonly TestModel _testModel;
-        private readonly DiffDriver _diffDriver;
-        private readonly DiffContext _diffContext;
-        private readonly CrawlArtifacts _crawlArtifacts;
-        private readonly Logger _logger;
-        private readonly string _siteArtifactsWinPath;
-        private readonly WriterQueueService _writerQueueService;
+        private readonly CrawlTest CrawlTest;
+        private readonly DiffDriver DiffDriver;
+        private readonly DiffContext DiffContext;
+        private readonly CrawlArtifacts CrawlArtifacts;
+        private readonly Logger Logger;
+        private readonly string SiteArtifactsWinPath;
+        private readonly WriterQueueService WriterQueueService;
 
         public DiffTestService(
-            TestModel testModel,
-            DiffDriver diffDriver,
-            DiffContext diffContext,
-            CrawlArtifacts crawlArtifacts,
-            IConfiguration configuration,
-            WriterQueueService writerQueueService
+            CrawlTest CrawlTest,
+            DiffDriver DiffDriver,
+            DiffContext DiffContext,
+            CrawlArtifacts CrawlArtifacts,
+            IConfiguration AppConfiguration,
+            WriterQueueService WriterQueueService
             )
         {
-            _testModel = testModel;
-            _diffDriver = diffDriver;
-            _diffContext = diffContext;
-            _crawlArtifacts = crawlArtifacts;
-            _logger = LogManager.GetCurrentClassLogger();
-            _siteArtifactsWinPath = configuration["SiteArtifactsWinPath"];
-            _writerQueueService = writerQueueService;
+            this.CrawlTest = CrawlTest;
+            this.DiffDriver = DiffDriver;
+            this.DiffContext = DiffContext;
+            this.CrawlArtifacts = CrawlArtifacts;
+            Logger = LogManager.GetCurrentClassLogger();
+            SiteArtifactsWinPath = AppConfiguration["SiteArtifactsWinPath"];
+            this.WriterQueueService = WriterQueueService;
         }
 
         public async Task<TestResult> RunDiffTestAsync(DiffTestPostRequestModel request)
         {
             try
             {
-                _logger.Info("<<TestStarted>>");
+                Logger.Info("<<TestStarted>>");
 
-                TimerUtil.StartTimer(_testModel.Timers, "DiffDuration");
+                TimerUtil.StartTimer(CrawlTest.Timers, "DiffDuration");
 
                 string baseTestGuidStr = request.BaseTestId!.ToString();
                 string newTestGuidStr = request.NewTestId!.ToString();
@@ -53,18 +53,18 @@ namespace CrawlerWebApi.Services
                 var baseTestGuid = Guid.Parse(baseTestGuidStr);
                 var newTestGuid = Guid.Parse(newTestGuidStr);
 
-                var baseTest = await _crawlArtifacts.GetCrawlTestAsync(baseTestGuidStr);
-                var newTest = await _crawlArtifacts.GetCrawlTestAsync(newTestGuidStr);
+                var baseTest = await CrawlArtifacts.GetCrawlTestAsync(baseTestGuidStr);
+                var newTest = await CrawlArtifacts.GetCrawlTestAsync(newTestGuidStr);
 
                 // these paths will be used to copy some files later later
-                _diffContext.BaseTestSavePath = baseTest.BaseSaveFolder;
-                _diffContext.NewTestSavePath = newTest.BaseSaveFolder;
+                DiffContext.BaseTestSavePath = baseTest.BaseSaveFolder;
+                DiffContext.NewTestSavePath = newTest.BaseSaveFolder;
 
                 // Set values for test model
-                _testModel.Name = "Diff test";
-                _testModel.BaseSaveFolder = PathUtil.CreateSavePath("diff-tests", _testModel.Id.ToString());
-                _testModel.Description = $"Comparing baseline test '{_diffContext.BaseTestSavePath}' and new test '{_diffContext.NewTestSavePath}'";
-                _testModel.DateTime = DateTime.Now;
+                CrawlTest.Name = "Diff test";
+                CrawlTest.BaseSaveFolder = PathUtil.CreateSavePath("diff-tests", CrawlTest.Id.ToString());
+                CrawlTest.Description = $"Comparing baseline test '{DiffContext.BaseTestSavePath}' and new test '{DiffContext.NewTestSavePath}'";
+                CrawlTest.DateTime = DateTime.Now;
 
                 // -
                 // --
@@ -86,8 +86,8 @@ namespace CrawlerWebApi.Services
                 //
                 // - Load and create objects from 'page-screenshots.json' for both tests and put in arrays
 
-                List<PageScreenshot> test1PageScreenshots = await _crawlArtifacts.GetPageScreenshots(baseTestGuid);
-                List<PageScreenshot> test2PageScreenshots = await _crawlArtifacts.GetPageScreenshots(newTestGuid);
+                List<PageScreenshot> test1PageScreenshots = await CrawlArtifacts.GetPageScreenshots(baseTestGuid);
+                List<PageScreenshot> test2PageScreenshots = await CrawlArtifacts.GetPageScreenshots(newTestGuid);
 
                 // - Loop through baseline test array
                 //   Take first object.UrlModel.Title and search other test array for an object with match
@@ -96,7 +96,7 @@ namespace CrawlerWebApi.Services
 
                 PageScreenshot test2ps;
 
-                _logger.Info("Starting page screenshot comparison(s)");
+                Logger.Info("Starting page screenshot comparison(s)");
 
                 foreach (PageScreenshot test1ps in test1PageScreenshots)
                 {
@@ -135,15 +135,15 @@ namespace CrawlerWebApi.Services
                         {
                             logText.AppendLine($"Screenshots have different heights, test1 height:'{test1ps.Height}', test2 height: '{test2ps.Height}'");
                         }
-                        _logger.Info(logText.ToString());
+                        Logger.Info(logText.ToString());
 
                         // ------------------------------------------------
                         // Page Diff
                         // ------------------------------------------------
                         string img1 = Path.Combine(test1ps.Path, test1ps.FileName);
                         string img2 = Path.Combine(test2ps.Path, test2ps.FileName);
-                        string diffImg = Path.Combine(_testModel.BaseSaveFolder, "page-screenshots", test1ps.FileName.Split("__")[0] + "__" + Guid.NewGuid() + ".png");
-                        _diffDriver.DiffImages(img1, img2, diffImg, test1ps.UrlModel.Title, null);
+                        string diffImg = Path.Combine(CrawlTest.BaseSaveFolder, "page-screenshots", test1ps.FileName.Split("__")[0] + "__" + Guid.NewGuid() + ".png");
+                        DiffDriver.DiffImages(img1, img2, diffImg, test1ps.UrlModel.Title, null);
 
                     } 
                     else
@@ -151,13 +151,13 @@ namespace CrawlerWebApi.Services
                         // did not match
                         // log an error
                         // @todo: add to errors array
-                        _logger.Error($"Page screenshot of a page with title '{test1ps.UrlModel.Title}' was not found in new test, skipping comparison on this one ...");
+                        Logger.Error($"Page screenshot of a page with title '{test1ps.UrlModel.Title}' was not found in new test, skipping comparison on this one ...");
                         continue;
                     }
                 }
 
-                string pageScreenshotPath = Path.Combine(_testModel.BaseSaveFolder, "page-screenshots");
-                ReportWriter.SaveReport(_diffContext.PageScreenshotDiffs, pageScreenshotPath, "screenshot-diffs");
+                string pageScreenshotPath = Path.Combine(CrawlTest.BaseSaveFolder, "page-screenshots");
+                ReportWriter.SaveReport(DiffContext.PageScreenshotDiffs, pageScreenshotPath, "screenshot-diffs");
 
                 // -
                 // --
@@ -171,12 +171,12 @@ namespace CrawlerWebApi.Services
                 // --
                 // -
 
-                List<AppArtifactManifest> test1AppArtifacts = await _crawlArtifacts.GetAppArtifacts(baseTestGuid);
-                List<AppArtifactManifest> test2AppArtifacts = await _crawlArtifacts.GetAppArtifacts(newTestGuid);
+                List<AppArtifactManifest> test1AppArtifacts = await CrawlArtifacts.GetAppArtifacts(baseTestGuid);
+                List<AppArtifactManifest> test2AppArtifacts = await CrawlArtifacts.GetAppArtifacts(newTestGuid);
 
                 AppArtifactManifest test2aa;
 
-                _logger.Info("Starting app screenshot comparison(s)");
+                Logger.Info("Starting app screenshot comparison(s)");
 
                 foreach (AppArtifactManifest test1aa in test1AppArtifacts)
                 {
@@ -189,7 +189,7 @@ namespace CrawlerWebApi.Services
                         test2aa = test2AppArtifacts.FirstOrDefault(item => item.AppName.Equals(test1aa.AppName) && item.TabApp.UniqueTabName.Equals(test1aa.TabApp.UniqueTabName) && item.UrlModel.Title.Equals(test1aa.UrlModel.Title));
                         if (test2aa == null)
                         {
-                            _logger.Error($"<<Error>>Screenshot for app '{test1aa.AppName}' > '{test1aa.TabApp.UniqueTabName}' on page '{test1aa.UrlModel.Title}' was found on baseline but not the new test, skipping comparison on this one ...");
+                            Logger.Error($"<<Error>>Screenshot for app '{test1aa.AppName}' > '{test1aa.TabApp.UniqueTabName}' on page '{test1aa.UrlModel.Title}' was found on baseline but not the new test, skipping comparison on this one ...");
                             continue;
                         }
                         _appNameSlug = test1aa.AppName + "__" + test1aa.TabApp.UniqueTabName + "__" + test1aa.Id;
@@ -199,7 +199,7 @@ namespace CrawlerWebApi.Services
                         test2aa = test2AppArtifacts.FirstOrDefault(item => item.AppName.Equals(test1aa.AppName) && item.UrlModel.Title.Equals(test1aa.UrlModel.Title));
                         if (test2aa == null)
                         {
-                            _logger.Error($"<<Error>>Screenshot for app '{test1aa.AppName}' on page '{test1aa.UrlModel.Title}' was found on baseline but not the new test, skipping comparison on this one ...");
+                            Logger.Error($"<<Error>>Screenshot for app '{test1aa.AppName}' on page '{test1aa.UrlModel.Title}' was found on baseline but not the new test, skipping comparison on this one ...");
                             continue;
                         }
                         _appNameSlug = test1aa.AppName + "__" + test1aa.Id;
@@ -220,7 +220,7 @@ namespace CrawlerWebApi.Services
                         logText.AppendLine($"New Test: width: '{test2aa.Width}px' x height: '{test2aa.Height}'px");
                     }
 
-                    _logger.Info(logText.ToString());
+                    Logger.Info(logText.ToString());
 
                     // Compare position
                     if (test1aa.Top == test2aa.Top && test1aa.Left == test2aa.Left)
@@ -234,36 +234,36 @@ namespace CrawlerWebApi.Services
                         logText.AppendLine($"New Test: Top: '{test2aa.Top}px', Left: '{test2aa.Left}px'");
                     }
 
-                    _logger.Info(logText.ToString());
+                    Logger.Info(logText.ToString());
 
                     // ----------------------
                     // Diff App screenshots
                     // ----------------------
                     string img1 = Path.Combine(test1aa.ScreenshotSavePath, test1aa.ScreenshotFileName);
                     string img2 = Path.Combine(test2aa.ScreenshotSavePath, test2aa.ScreenshotFileName);
-                    string diffImg = Path.Combine(_testModel.BaseSaveFolder, "app-screenshots", _appNameSlug + ".png");
-                    _diffDriver.DiffImages(img1, img2, diffImg, test1aa.UrlModel.Title, test1aa.AppName);
+                    string diffImg = Path.Combine(CrawlTest.BaseSaveFolder, "app-screenshots", _appNameSlug + ".png");
+                    DiffDriver.DiffImages(img1, img2, diffImg, test1aa.UrlModel.Title, test1aa.AppName);
 
                     // ----------------------
                     // Diff App html
                     // ---------------------- 
-                    AppHtml app1Html = await _crawlArtifacts.GetAppHTML(baseTestGuid, test1aa.HtmlFileName);
-                    AppHtml app2Html = await _crawlArtifacts.GetAppHTML(newTestGuid, test2aa.HtmlFileName);
-                    string DiffSavePath = Path.Combine(_testModel.BaseSaveFolder, "app-html");
-                    await _diffDriver.DiffHtml(app1Html, app2Html, DiffSavePath, _appNameSlug + ".html", true);
+                    AppHtml app1Html = await CrawlArtifacts.GetAppHTML(baseTestGuid, test1aa.HtmlFileName);
+                    AppHtml app2Html = await CrawlArtifacts.GetAppHTML(newTestGuid, test2aa.HtmlFileName);
+                    string DiffSavePath = Path.Combine(CrawlTest.BaseSaveFolder, "app-html");
+                    await DiffDriver.DiffHtml(app1Html, app2Html, DiffSavePath, _appNameSlug + ".html", true);
 
                     // ----------------------
                     // Diff App text
                     // ---------------------- 
-                    AppText app1Text = await _crawlArtifacts.GetAppText(baseTestGuid, test1aa.TextFileName);
-                    AppText app2Text = await _crawlArtifacts.GetAppText(newTestGuid, test2aa.TextFileName);
-                    string TextDiffSavePath = Path.Combine(_testModel.BaseSaveFolder, "app-html");
-                    await _diffDriver.DiffText(app1Text, app2Text, TextDiffSavePath, _appNameSlug + ".html", false);
+                    AppText app1Text = await CrawlArtifacts.GetAppText(baseTestGuid, test1aa.TextFileName);
+                    AppText app2Text = await CrawlArtifacts.GetAppText(newTestGuid, test2aa.TextFileName);
+                    string TextDiffSavePath = Path.Combine(CrawlTest.BaseSaveFolder, "app-html");
+                    await DiffDriver.DiffText(app1Text, app2Text, TextDiffSavePath, _appNameSlug + ".html", false);
                 }
 
-                ReportWriter.SaveReport(_diffContext.AppScreenshotDiffs, Path.Combine(_testModel.BaseSaveFolder, "app-screenshots"), "screenshot-diffs");
-                ReportWriter.SaveReport(_diffContext.AppHtmlDiffs, Path.Combine(_testModel.BaseSaveFolder, "app-html"), "app-markup-diffs");
-                ReportWriter.SaveReport(_diffContext.AppTextDiffs, Path.Combine(_testModel.BaseSaveFolder, "app-text"), "app-text-diffs");
+                ReportWriter.SaveReport(DiffContext.AppScreenshotDiffs, Path.Combine(CrawlTest.BaseSaveFolder, "app-screenshots"), "screenshot-diffs");
+                ReportWriter.SaveReport(DiffContext.AppHtmlDiffs, Path.Combine(CrawlTest.BaseSaveFolder, "app-html"), "app-markup-diffs");
+                ReportWriter.SaveReport(DiffContext.AppTextDiffs, Path.Combine(CrawlTest.BaseSaveFolder, "app-text"), "app-text-diffs");
 
 
                 /*
@@ -272,23 +272,23 @@ namespace CrawlerWebApi.Services
                 // Compare Page screenshots and create diffs
                 // ----------------------------------------------------
                 string imageDir = "page-screenshots";
-                string BaseTestImgPath = Path.Combine(_diffContext.BaseTestSavePath, imageDir);
-                string NewTestImgPath = Path.Combine(_diffContext.NewTestSavePath, imageDir);
-                string DiffTestImgPath = Path.Combine(_testModel.BaseSaveFolder, imageDir);
-                _diffDriver.DiffImgDirs(BaseTestImgPath, NewTestImgPath, DiffTestImgPath);
-                string pageScreenshotPath = Path.Combine(_testModel.BaseSaveFolder, imageDir);
-                ReportWriter.SaveReport(_diffContext.ScreenshotDiffs, pageScreenshotPath, "screenshot-diffs");
+                string BaseTestImgPath = Path.Combine(DiffContext.BaseTestSavePath, imageDir);
+                string NewTestImgPath = Path.Combine(DiffContext.NewTestSavePath, imageDir);
+                string DiffTestImgPath = Path.Combine(CrawlTest.BaseSaveFolder, imageDir);
+                DiffDriver.DiffImgDirs(BaseTestImgPath, NewTestImgPath, DiffTestImgPath);
+                string pageScreenshotPath = Path.Combine(CrawlTest.BaseSaveFolder, imageDir);
+                ReportWriter.SaveReport(DiffContext.ScreenshotDiffs, pageScreenshotPath, "screenshot-diffs");
 
                 // ----------------------------------------------------
                 // Compare App screenshots and create diffs
                 // ----------------------------------------------------
                 imageDir = "app-screenshots";
-                BaseTestImgPath = Path.Combine(_diffContext.BaseTestSavePath, imageDir);
-                NewTestImgPath = Path.Combine(_diffContext.NewTestSavePath, imageDir);
-                DiffTestImgPath = Path.Combine(_testModel.BaseSaveFolder, imageDir);
-                _diffDriver.DiffImgDirs(BaseTestImgPath, NewTestImgPath, DiffTestImgPath);
-                string appScreenshotPath = Path.Combine(_testModel.BaseSaveFolder, imageDir);
-                ReportWriter.SaveReport(_diffContext.ScreenshotDiffs, appScreenshotPath, "screenshot-diffs");
+                BaseTestImgPath = Path.Combine(DiffContext.BaseTestSavePath, imageDir);
+                NewTestImgPath = Path.Combine(DiffContext.NewTestSavePath, imageDir);
+                DiffTestImgPath = Path.Combine(CrawlTest.BaseSaveFolder, imageDir);
+                DiffDriver.DiffImgDirs(BaseTestImgPath, NewTestImgPath, DiffTestImgPath);
+                string appScreenshotPath = Path.Combine(CrawlTest.BaseSaveFolder, imageDir);
+                ReportWriter.SaveReport(DiffContext.ScreenshotDiffs, appScreenshotPath, "screenshot-diffs");
 
                 // ----------------------------------------------------
                 // Compare App Html markup and create reports
@@ -297,13 +297,13 @@ namespace CrawlerWebApi.Services
                 string subDirPath = "app-html";
                 string jsonFile = "app-html.json";
                 bool ignoreTextContent = true;
-                string baseJsonFilePath = Path.Combine(_diffContext.BaseTestSavePath, jsonFile);
-                string newJsonFilePath = Path.Combine(_diffContext.NewTestSavePath, jsonFile);
-                string DiffSavePath = Path.Combine(_testModel.BaseSaveFolder, subDirPath);
+                string baseJsonFilePath = Path.Combine(DiffContext.BaseTestSavePath, jsonFile);
+                string newJsonFilePath = Path.Combine(DiffContext.NewTestSavePath, jsonFile);
+                string DiffSavePath = Path.Combine(CrawlTest.BaseSaveFolder, subDirPath);
                 FileInfo _baseJsonFile = new FileInfo(baseJsonFilePath);
                 FileInfo _newJsonFile = new FileInfo(newJsonFilePath);
 
-                await _diffDriver.DiffHtmlFiles(_baseJsonFile, _newJsonFile, DiffSavePath, dotFileType, ignoreTextContent);
+                await DiffDriver.DiffHtmlFiles(_baseJsonFile, _newJsonFile, DiffSavePath, dotFileType, ignoreTextContent);
 
                 // ----------------------------------------------------
                 // Compare App text and create reports
@@ -312,53 +312,53 @@ namespace CrawlerWebApi.Services
                 subDirPath = "app-innertext";
                 jsonFile = "app-text.json";
                 ignoreTextContent = false;
-                baseJsonFilePath = Path.Combine(_diffContext.BaseTestSavePath, jsonFile);
-                newJsonFilePath = Path.Combine(_diffContext.NewTestSavePath, jsonFile);
-                DiffSavePath = Path.Combine(_testModel.BaseSaveFolder, subDirPath);
+                baseJsonFilePath = Path.Combine(DiffContext.BaseTestSavePath, jsonFile);
+                newJsonFilePath = Path.Combine(DiffContext.NewTestSavePath, jsonFile);
+                DiffSavePath = Path.Combine(CrawlTest.BaseSaveFolder, subDirPath);
                 _baseJsonFile = new FileInfo(baseJsonFilePath);
                 _newJsonFile = new FileInfo(newJsonFilePath);
-                await _diffDriver.DiffTextFiles(_baseJsonFile, _newJsonFile, DiffSavePath, ignoreTextContent);
+                await DiffDriver.DiffTextFiles(_baseJsonFile, _newJsonFile, DiffSavePath, ignoreTextContent);
 
                 */
 
 
                 // stop timer
-                TimerUtil.StopTimer(_testModel.Timers, "DiffDuration");
-                _testModel.Duration = TimerUtil.GetElapsedTime(_testModel.Timers, "DiffDuration");
+                TimerUtil.StopTimer(CrawlTest.Timers, "DiffDuration");
+                CrawlTest.Duration = TimerUtil.GetElapsedTime(CrawlTest.Timers, "DiffDuration");
 
                 // Update diff manifest
-                await _writerQueueService.EnqueueAsync(async () =>
+                await WriterQueueService.EnqueueAsync(async () =>
                 {
-                    string diffTestsManifestFile = Path.Combine(_siteArtifactsWinPath, "diff-tests", "tests.json");
-                    ReportWriter.UpdateJsonManifest(diffTestsManifestFile, _testModel);
+                    string diffTestsManifestFile = Path.Combine(SiteArtifactsWinPath, "diff-tests", "tests.json");
+                    ReportWriter.UpdateJsonManifest(diffTestsManifestFile, CrawlTest);
                 });
 
                 // copy baseline and newtest manifest files to diff base save for easy access
                 string sourceInfoFile = "test-info.json";
-                await FileUtil.CopyFileAsync(_diffContext.BaseTestSavePath, _testModel.BaseSaveFolder, sourceInfoFile, "baseline-test-info.json");
-                await FileUtil.CopyFileAsync(_diffContext.NewTestSavePath, _testModel.BaseSaveFolder, sourceInfoFile, "new-test-info.json");
+                await FileUtil.CopyFileAsync(DiffContext.BaseTestSavePath, CrawlTest.BaseSaveFolder, sourceInfoFile, "baseline-test-info.json");
+                await FileUtil.CopyFileAsync(DiffContext.NewTestSavePath, CrawlTest.BaseSaveFolder, sourceInfoFile, "new-test-info.json");
 
                 // log all timers
-                var allTimings = TimerUtil.GetAllTimings(_testModel.Timers);
+                var allTimings = TimerUtil.GetAllTimings(CrawlTest.Timers);
                 StringBuilder sb = new StringBuilder();
                 sb.Append("\r\n==== Time Reports ====\r\n");
                 foreach (var timing in allTimings)
                 {
                     sb.Append($"- {timing.Key} took {timing.Value.TotalSeconds} seconds.\r\n");
                 }
-                _logger.Info(sb.ToString());
+                Logger.Info(sb.ToString());
 
                 // copy log to save path
-                CopySpecflowLogToSavePath(_testModel.BaseSaveFolder);
+                CopySpecflowLogToSavePath(CrawlTest.BaseSaveFolder);
 
                 // ***************************************
-                _logger.Info("<<TestEnded>>");
+                Logger.Info("<<TestEnded>>");
                 return new TestResult { Success = true, ErrorMessage = "Successfully completed diff test" };
 
             } catch (Exception ex)
             {
-                _logger.Info("<<TestError>>, <<TestEnded>>");
-                _logger.Error(ex, "<<Error>> Unexpected error during diff test execution.");
+                Logger.Info("<<TestError>>, <<TestEnded>>");
+                Logger.Error(ex, "<<Error>> Unexpected error during diff test execution.");
                 return new TestResult { Success = false, ErrorMessage = ex.Message };
             }
         }
@@ -370,8 +370,8 @@ namespace CrawlerWebApi.Services
                 // copy specflow log file
                 string LogFilePath = @"C:\temp";
                 //string LogFileName = "specflow-console.log";
-                string LogFileFullPath = Path.Combine(LogFilePath, _testModel.LogFileName);
-                string LogFileDestFullPath = Path.Combine(savePath, _testModel.LogFileName);
+                string LogFileFullPath = Path.Combine(LogFilePath, CrawlTest.LogFileName);
+                string LogFileDestFullPath = Path.Combine(savePath, CrawlTest.LogFileName);
                 int maxRetries = 5;
                 int delay = 1000; // milliseconds
 
@@ -381,15 +381,15 @@ namespace CrawlerWebApi.Services
                     try
                     {
                         // Attempt to copy the log file
-                        _logger.Info($"Will try to copy log file from '{LogFileFullPath}' to '{LogFileDestFullPath}'");
+                        Logger.Info($"Will try to copy log file from '{LogFileFullPath}' to '{LogFileDestFullPath}'");
                         File.Copy(LogFileFullPath, LogFileDestFullPath, true);
-                        _logger.Info("Log file was copied successfully");
+                        Logger.Info("Log file was copied successfully");
                         break; // Exit loop if copy is successful
                     }
                     catch (IOException ex)
                     {
                         // Log the exception if needed
-                        _logger.Error($"<<Error>> Failed to copy log file: {ex.Message}");
+                        Logger.Error($"<<Error>> Failed to copy log file: {ex.Message}");
 
                         // Wait for the specified delay before retrying
                         Thread.Sleep(delay);
@@ -398,7 +398,7 @@ namespace CrawlerWebApi.Services
             }
             catch (Exception ex)
             {
-                _logger.Error($"<<Error>> Something went wrong trying to copy the log file. Error: {ex.Message}");
+                Logger.Error($"<<Error>> Something went wrong trying to copy the log file. Error: {ex.Message}");
             }
         }
     }
