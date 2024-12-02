@@ -14,7 +14,7 @@ using System.Net;
 
 namespace CrawlerWebApi.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/tests")]
     [ApiController]
     public class TestController : ControllerBase
     {
@@ -40,7 +40,7 @@ namespace CrawlerWebApi.Controllers
             DiffTest = diffTest;
         }
 
-        [HttpPost("baseline")]
+        [HttpPost("crawl-tests/launch")]
         public async Task<IActionResult> RunTests([FromBody] BaselineTestPostRequestModel request)
         {
             if (request == null)
@@ -59,7 +59,7 @@ namespace CrawlerWebApi.Controllers
                 try
                 {
                     // For testing purposes; remove these hardcoded values when deploying
-                    
+                    /*
                     request.Url = "https://BostonCommonClientQAUATV4.investcloud.com";
                     request.Username = "client@bostoncommon.com";
                     request.Password = "Mustang.2022";
@@ -75,8 +75,7 @@ namespace CrawlerWebApi.Controllers
                     request.GenerateAxeReports = true;
                     request.CaptureNetworkTraffic = true;
                     request.SaveHar = true;
-                    
-
+                    */
                     // Return the GUID immediately to the front end
                     Response.StatusCode = (int)HttpStatusCode.OK;
                     await Response.WriteAsync($"{{\"guid\":\"{testGuid}\"}}");
@@ -107,7 +106,7 @@ namespace CrawlerWebApi.Controllers
             }
         }
 
-        [HttpPost("diff")]
+        [HttpPost("diff-tests/launch")]
         public async Task<IActionResult> RunDiffTest([FromBody] DiffTestPostRequestModel request)
         {
             if (request == null)
@@ -117,9 +116,8 @@ namespace CrawlerWebApi.Controllers
 
             // Generate a unique TestId (GUID) to be used in creating a unique log file per test (for concurrency)
             var testGuid = Guid.NewGuid();
-            // Set testModel.Id to generated guid 
-            CrawlTest.Id = testGuid;
-            CrawlTest.LogFileName = $"diff-{testGuid}.log";
+            DiffTest.Id = testGuid;
+            DiffTest.LogFileName = $"diff-{testGuid}.log";
 
             using (Logger.PushScopeProperty("TestType", "diff"))
             using (Logger.PushScopeProperty("TestId", testGuid))
@@ -129,10 +127,6 @@ namespace CrawlerWebApi.Controllers
                     // Return the GUID immediately to the front end
                     Response.StatusCode = (int)HttpStatusCode.OK;
                     await Response.WriteAsync($"{{\"guid\":\"{testGuid}\"}}");
-
-                    // for debugging when using swagger, set to proper paths
-                    //request.BaseTestPath = @"C:\ictf\crawl-tests\hcglobalpre1\hcglobalpre1\09-25-2024__10-50-26-AM__1440x800";
-                    //request.NewTestPath = @"C:\ictf\crawl-tests\hcglobalpre1\hcglobalpre1\09-25-2024__02-28-08-PM__1440x800";
 
                     var result = await DiffTestService.RunDiffTestAsync(request);
 
@@ -151,12 +145,7 @@ namespace CrawlerWebApi.Controllers
             }
         }
 
-        /// <summary>
-        /// Get a specific crawl test by GUID.
-        /// </summary>
-        /// <param name="guid">The GUID of the crawl test to retrieve.</param>
-        /// <returns>The crawl test if found; otherwise, appropriate error response.</returns>
-        [HttpGet("crawl-test/{guid}")]
+        [HttpGet("crawl-tests/{guid}")]
         public async Task<IActionResult> GetCrawlTest(string guid)
         {
             if (string.IsNullOrWhiteSpace(guid))
@@ -190,7 +179,7 @@ namespace CrawlerWebApi.Controllers
             }
         }
 
-        [HttpGet("crawl-tests/")]
+        [HttpGet("crawl-tests")]
         public async Task<IActionResult> GetCrawlTests()
         {
             try
@@ -221,7 +210,7 @@ namespace CrawlerWebApi.Controllers
             }
         }
 
-        [HttpGet("crawl-test/page-screenshots/{guid}")]
+        [HttpGet("crawl-tests/{guid}/page-screenshots")]
         public async Task<IActionResult> GetCrawlTestPageScreenshots(string guid)
         {
             if (string.IsNullOrWhiteSpace(guid))
@@ -255,7 +244,7 @@ namespace CrawlerWebApi.Controllers
             }
         }
 
-        [HttpGet("crawl-test/app-screenshots/{guid}")]
+        [HttpGet("crawl-tests/{guid}/app-screenshots")]
         public async Task<IActionResult> GetCrawlTestAppScreenshots(string guid)
         {
             if (string.IsNullOrWhiteSpace(guid))
@@ -289,7 +278,7 @@ namespace CrawlerWebApi.Controllers
             }
         }
 
-        [HttpGet("crawl-test/urls/{guid}")]
+        [HttpGet("crawl-tests/{guid}/urls")]
         public async Task<IActionResult> GetCrawledUrls(string guid)
         {
             if (string.IsNullOrWhiteSpace(guid))
@@ -323,7 +312,7 @@ namespace CrawlerWebApi.Controllers
             }
         }
 
-        [HttpGet("crawl-test/page-app-summary/{guid}")]
+        [HttpGet("crawl-tests/{guid}/page-app-summary")]
         public async Task<IActionResult> GetPageAppSummary(string guid)
         {
             if (string.IsNullOrWhiteSpace(guid))
@@ -357,7 +346,7 @@ namespace CrawlerWebApi.Controllers
             }
         }
 
-        [HttpGet("crawl-test/app-artifacts/{guid}")]
+        [HttpGet("crawl-tests/{guid}/app-artifacts")]
         public async Task<IActionResult> GetAppArtifacts(string guid)
         {
             if (string.IsNullOrWhiteSpace(guid))
