@@ -22,38 +22,48 @@ namespace CrawlerWebApi.Services
             this.CrawlerArtifacts = CrawlerArtifacts;
         }
 
-        public async Task<CrawlTest> GetCrawlTestAsync(string guid)
+        public async Task<CrawlTest> GetCrawlTest(string guid)
         {
-            return await CrawlerArtifacts.GetCrawlTestAsync(guid);
+            return await CrawlerArtifacts.GetCrawlTest(guid);
         }
-        public async Task<List<CrawlTest>> GetCrawlTestsAsync()
+        public async Task<List<CrawlTest>> GetCrawlTests()
         {
-            return await CrawlerArtifacts.GetCrawlTestsAsync();
+            return await CrawlerArtifacts.GetCrawlTests();
         }
 
-        public async Task<List<PageScreenshot>> GetPageScreenshotsAsync(string guid)
+        public async Task<List<PageScreenshot>> GetPageScreenshots(string guid)
         {
             return await CrawlerArtifacts.GetPageScreenshots(Guid.Parse(guid));
         }
 
-        public async Task<List<AppScreenshot>> GetAppScreenshotsAsync(string guid)
+        public async Task<List<AppScreenshot>> GetAppScreenshots(string guid)
         {
             return await CrawlerArtifacts.GetAppScreenshots(Guid.Parse(guid));
         }
 
-        public async Task<List<UrlModel>> GetCrawledUrlsAsync(string guid)
+        public async Task<List<UrlModel>> GetCrawledUrls(string guid)
         {
             return await CrawlerArtifacts.GetCrawledUrls(Guid.Parse(guid));
         }
 
-        public async Task<List<IcPage>> GetPageAndAppSummaryAsync(string guid)
+        public async Task<List<IcPage>> GetPageAndAppSummary(string guid)
         {
             return await CrawlerArtifacts.GetPageAndAppSummary(Guid.Parse(guid));
         }
 
-        public async Task<List<AppArtifactManifest>> GetAppArtifactsAsync(string guid)
+        public async Task<List<AppArtifactManifest>> GetAppArtifacts(string guid)
         {
             return await CrawlerArtifacts.GetAppArtifacts(Guid.Parse(guid));
+        }
+
+        public async Task<string> GetAppHtml(string testGuid, string appGuid)
+        {
+            return await CrawlerArtifacts.GetAppHtmlContent(Guid.Parse(testGuid), Guid.Parse(appGuid));
+        }
+
+        public async Task<string> GetAppText(string testGuid, string appGuid)
+        {
+            return await CrawlerArtifacts.GetAppTextContent(Guid.Parse(testGuid), Guid.Parse(appGuid));
         }
     }
 }

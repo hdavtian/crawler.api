@@ -145,46 +145,12 @@ namespace CrawlerWebApi.Controllers
             }
         }
 
-        [HttpGet("crawl-tests/{guid}")]
-        public async Task<IActionResult> GetCrawlTest(string guid)
-        {
-            if (string.IsNullOrWhiteSpace(guid))
-                return BadRequest(new { message = "Guid parameter cannot be null or empty." });
-
-            try
-            {
-                var testModel = await TestService.GetCrawlTestAsync(guid);
-
-                if (testModel == null)
-                {
-                    return NotFound(new { message = "Crawl test not found for the provided GUID." });
-                }
-
-                return Ok(testModel);
-            }
-            catch (ArgumentException ex)
-            {
-                // Direct ArgumentException
-                return BadRequest(new { message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                // Check for wrapped exceptions
-                var errorMessage = ex.InnerException != null
-                    ? ex.InnerException.Message
-                    : ex.Message;
-
-                Logger.Error(ex, "<<Error>> An error occurred while running the baseline test.");
-                return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
-            }
-        }
-
         [HttpGet("crawl-tests")]
         public async Task<IActionResult> GetCrawlTests()
         {
             try
             {
-                var tests = await TestService.GetCrawlTestsAsync();
+                var tests = await TestService.GetCrawlTests();
 
                 if (tests == null)
                 {
@@ -210,6 +176,40 @@ namespace CrawlerWebApi.Controllers
             }
         }
 
+        [HttpGet("crawl-tests/{guid}")]
+        public async Task<IActionResult> GetCrawlTest(string guid)
+        {
+            if (string.IsNullOrWhiteSpace(guid))
+                return BadRequest(new { message = "Guid parameter cannot be null or empty." });
+
+            try
+            {
+                var testModel = await TestService.GetCrawlTest(guid);
+
+                if (testModel == null)
+                {
+                    return NotFound(new { message = "Crawl test not found for the provided GUID." });
+                }
+
+                return Ok(testModel);
+            }
+            catch (ArgumentException ex)
+            {
+                // Direct ArgumentException
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                // Check for wrapped exceptions
+                var errorMessage = ex.InnerException != null
+                    ? ex.InnerException.Message
+                    : ex.Message;
+
+                Logger.Error(ex, "<<Error>> An error occurred while running the baseline test.");
+                return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
+            }
+        }
+
         [HttpGet("crawl-tests/{guid}/page-screenshots")]
         public async Task<IActionResult> GetCrawlTestPageScreenshots(string guid)
         {
@@ -218,7 +218,7 @@ namespace CrawlerWebApi.Controllers
 
             try
             {
-                var pageScreenshots = await TestService.GetPageScreenshotsAsync(guid);
+                var pageScreenshots = await TestService.GetPageScreenshots(guid);
 
                 if (pageScreenshots == null)
                 {
@@ -252,7 +252,7 @@ namespace CrawlerWebApi.Controllers
 
             try
             {
-                var appScreenshots = await TestService.GetAppScreenshotsAsync(guid);
+                var appScreenshots = await TestService.GetAppScreenshots(guid);
 
                 if (appScreenshots == null)
                 {
@@ -286,7 +286,7 @@ namespace CrawlerWebApi.Controllers
 
             try
             {
-                var items = await TestService.GetCrawledUrlsAsync(guid);
+                var items = await TestService.GetCrawledUrls(guid);
 
                 if (items == null)
                 {
@@ -320,7 +320,7 @@ namespace CrawlerWebApi.Controllers
 
             try
             {
-                var items = await TestService.GetPageAndAppSummaryAsync(guid);
+                var items = await TestService.GetPageAndAppSummary(guid);
 
                 if (items == null)
                 {
@@ -354,7 +354,7 @@ namespace CrawlerWebApi.Controllers
 
             try
             {
-                var items = await TestService.GetAppArtifactsAsync(guid);
+                var items = await TestService.GetAppArtifacts(guid);
 
                 if (items == null)
                 {
@@ -379,5 +379,43 @@ namespace CrawlerWebApi.Controllers
                 return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
             }
         }
+
+        [HttpGet("crawl-tests/{testGuid}/app-html/{appGuid}")]
+        public async Task<IActionResult> GetAppHtml(string testGuid, string appGuid)
+        {
+            if (string.IsNullOrWhiteSpace(testGuid))
+                return BadRequest(new { message = "Test Guid parameter cannot be null or empty." });
+
+            if (string.IsNullOrWhiteSpace(appGuid))
+                return BadRequest(new { message = "App Guid parameter cannot be null or empty." });
+
+            try
+            {
+                string content = await TestService.GetAppHtml(testGuid, appGuid);
+
+                if (content == null)
+                {
+                    return NotFound(new { message = "App html was not found" });
+                }
+
+                return Ok(content);
+            }
+            catch (ArgumentException ex)
+            {
+                // Direct ArgumentException
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                // Check for wrapped exceptions
+                var errorMessage = ex.InnerException != null
+                    ? ex.InnerException.Message
+                    : ex.Message;
+
+                Logger.Error(ex, "<<Error>> An error occurred trying to get app html");
+                return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
+            }
+        }
+
     }
 }

@@ -55,8 +55,8 @@ namespace CrawlerWebApi.Services
                 var baseTestGuid = Guid.Parse(baseTestGuidStr);
                 var newTestGuid = Guid.Parse(newTestGuidStr);
 
-                var baseTest = await CrawlArtifacts.GetCrawlTestAsync(baseTestGuidStr);
-                var newTest = await CrawlArtifacts.GetCrawlTestAsync(newTestGuidStr);
+                var baseTest = await CrawlArtifacts.GetCrawlTest(baseTestGuidStr);
+                var newTest = await CrawlArtifacts.GetCrawlTest(newTestGuidStr);
 
                 // these paths will be used to copy some files later later
                 DiffContext.BaseTestSavePath = baseTest.BaseSaveFolder;
