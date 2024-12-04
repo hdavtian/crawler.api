@@ -73,5 +73,9 @@ namespace CrawlerWebApi.Services
         {
             return await DiffArtifacts.GetDiffTests();
         }
+        public async Task<DiffTest> GetDiffTest(string guid)
+        {
+            return await DiffArtifacts.GetDiffTest(guid);
+        }
     }
 }

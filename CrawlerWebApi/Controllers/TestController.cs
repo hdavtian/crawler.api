@@ -482,5 +482,38 @@ namespace CrawlerWebApi.Controllers
                 return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
             }
         }
+        [HttpGet("diff-tests/{guid}")]
+        public async Task<IActionResult> GetDiffTest(string guid)
+        {
+            if (string.IsNullOrWhiteSpace(guid))
+                return BadRequest(new { message = "Guid parameter cannot be null or empty." });
+
+            try
+            {
+                var testModel = await TestService.GetDiffTest(guid);
+
+                if (testModel == null)
+                {
+                    return NotFound(new { message = "Diff test not found for the provided GUID." });
+                }
+
+                return Ok(testModel);
+            }
+            catch (ArgumentException ex)
+            {
+                // Direct ArgumentException
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                // Check for wrapped exceptions
+                var errorMessage = ex.InnerException != null
+                    ? ex.InnerException.Message
+                    : ex.Message;
+
+                Logger.Error(ex, "<<Error>> An error occurred while getting the diff.");
+                return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
+            }
+        }
     }
 }
