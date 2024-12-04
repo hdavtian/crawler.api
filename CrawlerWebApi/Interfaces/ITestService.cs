@@ -16,6 +16,6 @@ namespace CrawlerWebApi.Interfaces
         Task<string> GetAppText(string TestGuid, string AppGuid);
         Task<List<DiffTest>> GetDiffTests();
         Task<DiffTest> GetDiffTest(string Guid);
-
+        Task<List<AppDiffs>> GetAllAppDiffs(string TestGuid);
     }
 }

@@ -77,5 +77,10 @@ namespace CrawlerWebApi.Services
         {
             return await DiffArtifacts.GetDiffTest(guid);
         }
+
+        public async Task<List<AppDiffs>> GetAllAppDiffs(string TestGuid)
+        {
+            return await DiffArtifacts.GetAllAppDiffs(Guid.Parse(TestGuid));
+        }
     }
 }

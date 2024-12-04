@@ -31,7 +31,6 @@ namespace CrawlerWebApi.Services
             WriterQueueService WriterQueueService
             )
         {
-            //this.CrawlTest = CrawlTest;
             this.DiffTest = DiffTest;
             this.DiffDriver = DiffDriver;
             this.DiffContext = DiffContext;
@@ -40,7 +39,6 @@ namespace CrawlerWebApi.Services
             SiteArtifactsWinPath = AppConfiguration["SiteArtifactsWinPath"];
             this.WriterQueueService = WriterQueueService;
         }
-
         public async Task<TestResult> RunDiffTestAsync(DiffTestPostRequestModel request)
         {
             try
@@ -249,7 +247,7 @@ namespace CrawlerWebApi.Services
                     string img1 = Path.Combine(test1aa.ScreenshotSavePath, test1aa.ScreenshotFileName);
                     string img2 = Path.Combine(test2aa.ScreenshotSavePath, test2aa.ScreenshotFileName);
                     string diffImg = Path.Combine(DiffTest.BaseSaveFolder, "app-screenshots", _appNameSlug + ".png");
-                    DiffDriver.DiffImages(img1, img2, diffImg, test1aa.UrlModel.Title, test1aa.AppName);
+                    ScreenshotDiff ssDiff = DiffDriver.DiffImages(img1, img2, diffImg, test1aa.UrlModel.Title, test1aa.AppName);
 
                     // ----------------------
                     // Diff App html
@@ -257,7 +255,7 @@ namespace CrawlerWebApi.Services
                     AppHtml app1Html = await CrawlArtifacts.GetAppHTML(baseTestGuid, test1aa.HtmlFileName);
                     AppHtml app2Html = await CrawlArtifacts.GetAppHTML(newTestGuid, test2aa.HtmlFileName);
                     string DiffSavePath = Path.Combine(DiffTest.BaseSaveFolder, "app-html");
-                    await DiffDriver.DiffHtml(app1Html, app2Html, DiffSavePath, _appNameSlug + ".html", true);
+                    AppHtmlDiff appHtmlDiff = await DiffDriver.DiffHtml(app1Html, app2Html, DiffSavePath, _appNameSlug + ".html", true);
 
                     // ----------------------
                     // Diff App text
@@ -265,7 +263,15 @@ namespace CrawlerWebApi.Services
                     AppText app1Text = await CrawlArtifacts.GetAppText(baseTestGuid, test1aa.TextFileName);
                     AppText app2Text = await CrawlArtifacts.GetAppText(newTestGuid, test2aa.TextFileName);
                     string TextDiffSavePath = Path.Combine(DiffTest.BaseSaveFolder, "app-html");
-                    await DiffDriver.DiffText(app1Text, app2Text, TextDiffSavePath, _appNameSlug + ".html", false);
+                    AppTextDiff appTextDiff = await DiffDriver.DiffText(app1Text, app2Text, TextDiffSavePath, _appNameSlug + ".html", false);
+
+                    var _appDiffs = new AppDiffs()
+                    {
+                        ScreenshotDiff = ssDiff,
+                        AppHtmlDiff = appHtmlDiff,
+                        AppTextDiff = appTextDiff
+                    };
+                    DiffContext.AppDiffs.Add(_appDiffs);
                 }
 
                 // Capturing totals to include in DiffTest
@@ -274,6 +280,7 @@ namespace CrawlerWebApi.Services
                 ReportWriter.SaveReport(DiffContext.AppScreenshots, Path.Combine(DiffTest.BaseSaveFolder, "app-screenshots"), "screenshots");
                 ReportWriter.SaveReport(DiffContext.AppHtmls, Path.Combine(DiffTest.BaseSaveFolder, "app-html"), "app-html");
                 ReportWriter.SaveReport(DiffContext.AppTexts, Path.Combine(DiffTest.BaseSaveFolder, "app-text"), "app-text");
+                ReportWriter.SaveReport(DiffContext.AppDiffs, DiffTest.BaseSaveFolder, "app-diffs");
 
 
                 /*

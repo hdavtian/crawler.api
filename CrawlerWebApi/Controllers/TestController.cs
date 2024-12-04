@@ -90,7 +90,7 @@ namespace CrawlerWebApi.Controllers
                     */
                     // Return the GUID immediately to the front end
                     Response.StatusCode = (int)HttpStatusCode.OK;
-                    await Response.WriteAsync($"{{\"guid\":\"{testGuid}\"}}");
+                    await Response.WriteAsync($"{{\"testGuid\":\"{testGuid}\"}}");
 
                     // Continue running the test in the background
                     _ = Task.Run(async () =>
@@ -138,7 +138,7 @@ namespace CrawlerWebApi.Controllers
                 {
                     // Return the GUID immediately to the front end
                     Response.StatusCode = (int)HttpStatusCode.OK;
-                    await Response.WriteAsync($"{{\"guid\":\"{testGuid}\"}}");
+                    await Response.WriteAsync($"{{\"testGuid\":\"{testGuid}\"}}");
 
                     var result = await DiffTestService.RunDiffTestAsync(request);
 
@@ -200,15 +200,15 @@ namespace CrawlerWebApi.Controllers
             }
         }
 
-        [HttpGet("crawl-tests/{guid}")]
-        public async Task<IActionResult> GetCrawlTest(string guid)
+        [HttpGet("crawl-tests/{testGuid}")]
+        public async Task<IActionResult> GetCrawlTest(string testGuid)
         {
-            if (string.IsNullOrWhiteSpace(guid))
+            if (string.IsNullOrWhiteSpace(testGuid))
                 return BadRequest(new { message = "Guid parameter cannot be null or empty." });
 
             try
             {
-                var testModel = await TestService.GetCrawlTest(guid);
+                var testModel = await TestService.GetCrawlTest(testGuid);
 
                 if (testModel == null)
                 {
@@ -234,15 +234,15 @@ namespace CrawlerWebApi.Controllers
             }
         }
 
-        [HttpGet("crawl-tests/{guid}/page-screenshots")]
-        public async Task<IActionResult> GetCrawlTestPageScreenshots(string guid)
+        [HttpGet("crawl-tests/{testGuid}/page-screenshots")]
+        public async Task<IActionResult> GetCrawlTestPageScreenshots(string testGuid)
         {
-            if (string.IsNullOrWhiteSpace(guid))
+            if (string.IsNullOrWhiteSpace(testGuid))
                 return BadRequest(new { message = "Guid parameter cannot be null or empty." });
 
             try
             {
-                var pageScreenshots = await TestService.GetPageScreenshots(guid);
+                var pageScreenshots = await TestService.GetPageScreenshots(testGuid);
 
                 if (pageScreenshots == null)
                 {
@@ -268,15 +268,15 @@ namespace CrawlerWebApi.Controllers
             }
         }
 
-        [HttpGet("crawl-tests/{guid}/app-screenshots")]
-        public async Task<IActionResult> GetCrawlTestAppScreenshots(string guid)
+        [HttpGet("crawl-tests/{testGuid}/app-screenshots")]
+        public async Task<IActionResult> GetCrawlTestAppScreenshots(string testGuid)
         {
-            if (string.IsNullOrWhiteSpace(guid))
+            if (string.IsNullOrWhiteSpace(testGuid))
                 return BadRequest(new { message = "Guid parameter cannot be null or empty." });
 
             try
             {
-                var appScreenshots = await TestService.GetAppScreenshots(guid);
+                var appScreenshots = await TestService.GetAppScreenshots(testGuid);
 
                 if (appScreenshots == null)
                 {
@@ -302,15 +302,15 @@ namespace CrawlerWebApi.Controllers
             }
         }
 
-        [HttpGet("crawl-tests/{guid}/urls")]
-        public async Task<IActionResult> GetCrawledUrls(string guid)
+        [HttpGet("crawl-tests/{testGuid}/urls")]
+        public async Task<IActionResult> GetCrawledUrls(string testGuid)
         {
-            if (string.IsNullOrWhiteSpace(guid))
+            if (string.IsNullOrWhiteSpace(testGuid))
                 return BadRequest(new { message = "Guid parameter cannot be null or empty." });
 
             try
             {
-                var items = await TestService.GetCrawledUrls(guid);
+                var items = await TestService.GetCrawledUrls(testGuid);
 
                 if (items == null)
                 {
@@ -336,15 +336,15 @@ namespace CrawlerWebApi.Controllers
             }
         }
 
-        [HttpGet("crawl-tests/{guid}/page-app-summary")]
-        public async Task<IActionResult> GetPageAppSummary(string guid)
+        [HttpGet("crawl-tests/{testGuid}/page-app-summary")]
+        public async Task<IActionResult> GetPageAppSummary(string testGuid)
         {
-            if (string.IsNullOrWhiteSpace(guid))
+            if (string.IsNullOrWhiteSpace(testGuid))
                 return BadRequest(new { message = "Guid parameter cannot be null or empty." });
 
             try
             {
-                var items = await TestService.GetPageAndAppSummary(guid);
+                var items = await TestService.GetPageAndAppSummary(testGuid);
 
                 if (items == null)
                 {
@@ -370,15 +370,15 @@ namespace CrawlerWebApi.Controllers
             }
         }
 
-        [HttpGet("crawl-tests/{guid}/app-artifacts")]
-        public async Task<IActionResult> GetAppArtifacts(string guid)
+        [HttpGet("crawl-tests/{testGuid}/app-artifacts")]
+        public async Task<IActionResult> GetAppArtifacts(string testGuid)
         {
-            if (string.IsNullOrWhiteSpace(guid))
+            if (string.IsNullOrWhiteSpace(testGuid))
                 return BadRequest(new { message = "Guid parameter cannot be null or empty." });
 
             try
             {
-                var items = await TestService.GetAppArtifacts(guid);
+                var items = await TestService.GetAppArtifacts(testGuid);
 
                 if (items == null)
                 {
@@ -482,15 +482,15 @@ namespace CrawlerWebApi.Controllers
                 return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
             }
         }
-        [HttpGet("diff-tests/{guid}")]
-        public async Task<IActionResult> GetDiffTest(string guid)
+        [HttpGet("diff-tests/{testGuid}")]
+        public async Task<IActionResult> GetDiffTest(string testGuid)
         {
-            if (string.IsNullOrWhiteSpace(guid))
+            if (string.IsNullOrWhiteSpace(testGuid))
                 return BadRequest(new { message = "Guid parameter cannot be null or empty." });
 
             try
             {
-                var testModel = await TestService.GetDiffTest(guid);
+                var testModel = await TestService.GetDiffTest(testGuid);
 
                 if (testModel == null)
                 {
@@ -512,6 +512,39 @@ namespace CrawlerWebApi.Controllers
                     : ex.Message;
 
                 Logger.Error(ex, "<<Error>> An error occurred while getting the diff.");
+                return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
+            }
+        }
+        [HttpGet("diff-tests/{testGuid}/app-diffs")]
+        public async Task<IActionResult> GetAppDiffs(string testGuid)
+        {
+            if (string.IsNullOrWhiteSpace(testGuid))
+                return BadRequest(new { message = "Guid parameter cannot be null or empty." });
+
+            try
+            {
+                var appDiffs = await TestService.GetAllAppDiffs(testGuid);
+
+                if (appDiffs == null)
+                {
+                    return NotFound(new { message = "App diffs not found for the provided GUID." });
+                }
+
+                return Ok(appDiffs);
+            }
+            catch (ArgumentException ex)
+            {
+                // Direct ArgumentException
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                // Check for wrapped exceptions
+                var errorMessage = ex.InnerException != null
+                    ? ex.InnerException.Message
+                    : ex.Message;
+
+                Logger.Error(ex, "<<Error>> An error occurred while getting app diffs.");
                 return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
             }
         }
