@@ -6,16 +6,17 @@ namespace CrawlerWebApi.Interfaces
     public interface ITestService
     {
         Task<List<CrawlTest>> GetCrawlTests();
-        Task<CrawlTest> GetCrawlTest(string Guid);
-        Task<List<PageScreenshot>> GetPageScreenshots(string Guid);
-        Task<List<AppScreenshot>> GetAppScreenshots(string Guid);
-        Task<List<UrlModel>> GetCrawledUrls(string Guid);
-        Task<List<IcPage>> GetPageAndAppSummary(string Guid);
-        Task<List<AppArtifactManifest>> GetAppArtifacts(string Guid);
-        Task<string> GetAppHtml(string TestGuid, string AppGuid);
-        Task<string> GetAppText(string TestGuid, string AppGuid);
+        Task<CrawlTest> GetCrawlTest(string testGuid);
+        Task<List<PageScreenshot>> GetPageScreenshots(string testGuid);
+        Task<List<AppScreenshot>> GetAppScreenshots(string testGuid);
+        Task<List<UrlModel>> GetCrawledUrls(string testGuid);
+        Task<List<IcPage>> GetPageAndAppSummary(string testGuid);
+        Task<List<AppArtifactManifest>> GetAppArtifacts(string testGuid);
+        Task<string> GetAppHtml(string testGuid, string appGuid);
+        Task<string> GetAppText(string testGuid, string appGuid);
         Task<List<DiffTest>> GetDiffTests();
-        Task<DiffTest> GetDiffTest(string Guid);
-        Task<List<AppDiffs>> GetAllAppDiffs(string TestGuid);
+        Task<DiffTest> GetDiffTest(string testGuid);
+        Task<List<AppDiffs>> GetAllAppDiffs(string testGuid);
+        Task<AppDiffs> GetAppDiffs(string testGuid, string appGuid);
     }
 }

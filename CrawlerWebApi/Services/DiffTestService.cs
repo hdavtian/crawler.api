@@ -17,7 +17,7 @@ namespace CrawlerWebApi.Services
         private readonly DiffTest DiffTest;
         private readonly DiffDriver DiffDriver;
         private readonly DiffContext DiffContext;
-        private readonly CrawlArtifacts CrawlArtifacts;
+        private readonly CrawlArtifactManager CrawlArtifactManager;
         private readonly Logger Logger;
         private readonly string SiteArtifactsWinPath;
         private readonly WriterQueueService WriterQueueService;
@@ -26,7 +26,7 @@ namespace CrawlerWebApi.Services
             DiffTest DiffTest,
             DiffDriver DiffDriver,
             DiffContext DiffContext,
-            CrawlArtifacts CrawlArtifacts,
+            CrawlArtifactManager CrawlArtifactManager,
             IConfiguration AppConfiguration,
             WriterQueueService WriterQueueService
             )
@@ -34,7 +34,7 @@ namespace CrawlerWebApi.Services
             this.DiffTest = DiffTest;
             this.DiffDriver = DiffDriver;
             this.DiffContext = DiffContext;
-            this.CrawlArtifacts = CrawlArtifacts;
+            this.CrawlArtifactManager = CrawlArtifactManager;
             Logger = LogManager.GetCurrentClassLogger();
             SiteArtifactsWinPath = AppConfiguration["SiteArtifactsWinPath"];
             this.WriterQueueService = WriterQueueService;
@@ -53,8 +53,8 @@ namespace CrawlerWebApi.Services
                 var baseTestGuid = Guid.Parse(baseTestGuidStr);
                 var newTestGuid = Guid.Parse(newTestGuidStr);
 
-                var baseTest = await CrawlArtifacts.GetCrawlTest(baseTestGuidStr);
-                var newTest = await CrawlArtifacts.GetCrawlTest(newTestGuidStr);
+                var baseTest = await CrawlArtifactManager.GetCrawlTest(baseTestGuidStr);
+                var newTest = await CrawlArtifactManager.GetCrawlTest(newTestGuidStr);
 
                 // these paths will be used to copy some files later later
                 DiffContext.BaseTestSavePath = baseTest.BaseSaveFolder;
@@ -80,8 +80,8 @@ namespace CrawlerWebApi.Services
                 // --
                 // -
 
-                List<PageScreenshot> test1PageScreenshots = await CrawlArtifacts.GetPageScreenshots(baseTestGuid);
-                List<PageScreenshot> test2PageScreenshots = await CrawlArtifacts.GetPageScreenshots(newTestGuid);
+                List<PageScreenshot> test1PageScreenshots = await CrawlArtifactManager.GetPageScreenshots(baseTestGuid);
+                List<PageScreenshot> test2PageScreenshots = await CrawlArtifactManager.GetPageScreenshots(newTestGuid);
 
                 PageScreenshot test2ps;
 
@@ -168,8 +168,8 @@ namespace CrawlerWebApi.Services
                 DiffContext.DiffTestTotals.AppHtmlDiffTotal = 0;
                 DiffContext.DiffTestTotals.AppTextDiffTotal = 0;
 
-                List<AppArtifactManifest> test1AppArtifacts = await CrawlArtifacts.GetAppArtifacts(baseTestGuid);
-                List<AppArtifactManifest> test2AppArtifacts = await CrawlArtifacts.GetAppArtifacts(newTestGuid);
+                List<AppArtifactManifest> test1AppArtifacts = await CrawlArtifactManager.GetAppArtifacts(baseTestGuid);
+                List<AppArtifactManifest> test2AppArtifacts = await CrawlArtifactManager.GetAppArtifacts(newTestGuid);
 
                 AppArtifactManifest test2aa;
 
@@ -252,16 +252,16 @@ namespace CrawlerWebApi.Services
                     // ----------------------
                     // Diff App html
                     // ---------------------- 
-                    AppHtml app1Html = await CrawlArtifacts.GetAppHTML(baseTestGuid, test1aa.HtmlFileName);
-                    AppHtml app2Html = await CrawlArtifacts.GetAppHTML(newTestGuid, test2aa.HtmlFileName);
+                    AppHtml app1Html = await CrawlArtifactManager.GetAppHTML(baseTestGuid, test1aa.HtmlFileName);
+                    AppHtml app2Html = await CrawlArtifactManager.GetAppHTML(newTestGuid, test2aa.HtmlFileName);
                     string DiffSavePath = Path.Combine(DiffTest.BaseSaveFolder, "app-html");
                     AppHtmlDiff appHtmlDiff = await DiffDriver.DiffHtml(app1Html, app2Html, DiffSavePath, _appNameSlug + ".html", true);
 
                     // ----------------------
                     // Diff App text
                     // ---------------------- 
-                    AppText app1Text = await CrawlArtifacts.GetAppText(baseTestGuid, test1aa.TextFileName);
-                    AppText app2Text = await CrawlArtifacts.GetAppText(newTestGuid, test2aa.TextFileName);
+                    AppText app1Text = await CrawlArtifactManager.GetAppText(baseTestGuid, test1aa.TextFileName);
+                    AppText app2Text = await CrawlArtifactManager.GetAppText(newTestGuid, test2aa.TextFileName);
                     string TextDiffSavePath = Path.Combine(DiffTest.BaseSaveFolder, "app-html");
                     AppTextDiff appTextDiff = await DiffDriver.DiffText(app1Text, app2Text, TextDiffSavePath, _appNameSlug + ".html", false);
 

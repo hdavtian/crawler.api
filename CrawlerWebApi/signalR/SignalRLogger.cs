@@ -10,9 +10,9 @@ namespace CrawlerWebApi.signalR
         private static IHubContext<LoggingHub> HubContext;
 
         // Static method to set the IHubContext via DI
-        public static void SetHubContext(IHubContext<LoggingHub> HubContext)
+        public static void SetHubContext(IHubContext<LoggingHub> hubContext)
         {
-            HubContext = HubContext;
+            hubContext = hubContext;
         }
 
         // Static method called by NLog

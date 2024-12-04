@@ -11,76 +11,81 @@ namespace CrawlerWebApi.Services
     {
         private readonly IConfiguration AppConfiguration;
         private readonly string SiteArtifactsWinPath;
-        private readonly CrawlArtifacts CrawlerArtifacts;
-        private readonly DiffArtifacts DiffArtifacts;
+        private readonly CrawlArtifactManager CrawlArtifactManager;
+        private readonly DiffArtifactManager DiffArtifactManager;
 
         public TestService(
             IConfiguration AppConfiguration,
-            CrawlArtifacts CrawlerArtifacts,
-            DiffArtifacts DiffArtifacts)
+            CrawlArtifactManager CrawlArtifactManager,
+            DiffArtifactManager DiffArtifactManager)
         {
             this.AppConfiguration = AppConfiguration;
             SiteArtifactsWinPath = this.AppConfiguration.GetValue<string>("SiteArtifactsWinPath");
-            this.CrawlerArtifacts = CrawlerArtifacts;
-            this.DiffArtifacts = DiffArtifacts;
+            this.CrawlArtifactManager = CrawlArtifactManager;
+            this.DiffArtifactManager = DiffArtifactManager;
         }
 
-        public async Task<CrawlTest> GetCrawlTest(string guid)
+        public async Task<CrawlTest> GetCrawlTest(string testGuid)
         {
-            return await CrawlerArtifacts.GetCrawlTest(guid);
+            return await CrawlArtifactManager.GetCrawlTest(testGuid);
         }
         public async Task<List<CrawlTest>> GetCrawlTests()
         {
-            return await CrawlerArtifacts.GetCrawlTests();
+            return await CrawlArtifactManager.GetCrawlTests();
         }
 
-        public async Task<List<PageScreenshot>> GetPageScreenshots(string guid)
+        public async Task<List<PageScreenshot>> GetPageScreenshots(string testGuid)
         {
-            return await CrawlerArtifacts.GetPageScreenshots(Guid.Parse(guid));
+            return await CrawlArtifactManager.GetPageScreenshots(Guid.Parse(testGuid));
         }
 
-        public async Task<List<AppScreenshot>> GetAppScreenshots(string guid)
+        public async Task<List<AppScreenshot>> GetAppScreenshots(string testGuid)
         {
-            return await CrawlerArtifacts.GetAppScreenshots(Guid.Parse(guid));
+            return await CrawlArtifactManager.GetAppScreenshots(Guid.Parse(testGuid));
         }
 
-        public async Task<List<UrlModel>> GetCrawledUrls(string guid)
+        public async Task<List<UrlModel>> GetCrawledUrls(string testGuid)
         {
-            return await CrawlerArtifacts.GetCrawledUrls(Guid.Parse(guid));
+            return await CrawlArtifactManager.GetCrawledUrls(Guid.Parse(testGuid));
         }
 
-        public async Task<List<IcPage>> GetPageAndAppSummary(string guid)
+        public async Task<List<IcPage>> GetPageAndAppSummary(string testGuid)
         {
-            return await CrawlerArtifacts.GetPageAndAppSummary(Guid.Parse(guid));
+            return await CrawlArtifactManager.GetPageAndAppSummary(Guid.Parse(testGuid));
         }
 
-        public async Task<List<AppArtifactManifest>> GetAppArtifacts(string guid)
+        public async Task<List<AppArtifactManifest>> GetAppArtifacts(string testGuid)
         {
-            return await CrawlerArtifacts.GetAppArtifacts(Guid.Parse(guid));
+            return await CrawlArtifactManager.GetAppArtifacts(Guid.Parse(testGuid));
         }
 
         public async Task<string> GetAppHtml(string testGuid, string appGuid)
         {
-            return await CrawlerArtifacts.GetAppHtmlContent(Guid.Parse(testGuid), Guid.Parse(appGuid));
+            return await CrawlArtifactManager.GetAppHtmlContent(Guid.Parse(testGuid), Guid.Parse(appGuid));
         }
 
         public async Task<string> GetAppText(string testGuid, string appGuid)
         {
-            return await CrawlerArtifacts.GetAppTextContent(Guid.Parse(testGuid), Guid.Parse(appGuid));
+            return await CrawlArtifactManager.GetAppTextContent(Guid.Parse(testGuid), Guid.Parse(appGuid));
         }
         /* Diff tests*/
         public async Task<List<DiffTest>> GetDiffTests()
         {
-            return await DiffArtifacts.GetDiffTests();
+            return await DiffArtifactManager.GetDiffTests();
         }
-        public async Task<DiffTest> GetDiffTest(string guid)
+        public async Task<DiffTest> GetDiffTest(string testGuid)
         {
-            return await DiffArtifacts.GetDiffTest(guid);
+            return await DiffArtifactManager.GetDiffTest(testGuid);
         }
 
-        public async Task<List<AppDiffs>> GetAllAppDiffs(string TestGuid)
+        public async Task<List<AppDiffs>> GetAllAppDiffs(string testGuid)
         {
-            return await DiffArtifacts.GetAllAppDiffs(Guid.Parse(TestGuid));
+            return await DiffArtifactManager.GetAllAppDiffs(Guid.Parse(testGuid));
+        }
+
+        public async Task<AppDiffs> GetAppDiffs(string testGuid, string appGuid)
+        {
+            return await DiffArtifactManager.GetAppDiff(Guid.Parse(testGuid), Guid.Parse(appGuid));
         }
     }
 }

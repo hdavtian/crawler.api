@@ -452,6 +452,7 @@ namespace CrawlerWebApi.Controllers
         // --
         // -
         //
+
         [HttpGet("diff-tests")]
         public async Task<IActionResult> GetDiffTests()
         {
@@ -516,7 +517,7 @@ namespace CrawlerWebApi.Controllers
             }
         }
         [HttpGet("diff-tests/{testGuid}/app-diffs")]
-        public async Task<IActionResult> GetAppDiffs(string testGuid)
+        public async Task<IActionResult> GetAllAppDiffs(string testGuid)
         {
             if (string.IsNullOrWhiteSpace(testGuid))
                 return BadRequest(new { message = "Guid parameter cannot be null or empty." });
@@ -524,6 +525,42 @@ namespace CrawlerWebApi.Controllers
             try
             {
                 var appDiffs = await TestService.GetAllAppDiffs(testGuid);
+
+                if (appDiffs == null)
+                {
+                    return NotFound(new { message = "App diffs not found for the provided GUID." });
+                }
+
+                return Ok(appDiffs);
+            }
+            catch (ArgumentException ex)
+            {
+                // Direct ArgumentException
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                // Check for wrapped exceptions
+                var errorMessage = ex.InnerException != null
+                    ? ex.InnerException.Message
+                    : ex.Message;
+
+                Logger.Error(ex, "<<Error>> An error occurred while getting app diffs.");
+                return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
+            }
+        }
+        [HttpGet("diff-tests/{testGuid}/app-diffs/{appGuid}")]
+        public async Task<IActionResult> GetAppDiffs(string testGuid, string appGuid)
+        {
+            if (string.IsNullOrWhiteSpace(testGuid))
+                return BadRequest(new { message = "Test guid parameter cannot be null or empty." });
+
+            if (string.IsNullOrWhiteSpace(appGuid))
+                return BadRequest(new { message = "App guid parameter cannot be null or empty." });
+
+            try
+            {
+                var appDiffs = await TestService.GetAppDiffs(testGuid, appGuid);
 
                 if (appDiffs == null)
                 {
