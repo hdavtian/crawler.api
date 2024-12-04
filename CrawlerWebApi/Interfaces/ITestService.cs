@@ -14,5 +14,6 @@ namespace CrawlerWebApi.Interfaces
         Task<List<AppArtifactManifest>> GetAppArtifacts(string Guid);
         Task<string> GetAppHtml(string TestGuid, string AppGuid);
         Task<string> GetAppText(string TestGuid, string AppGuid);
+        Task<List<DiffTest>> GetDiffTests();
     }
 }

@@ -12,14 +12,17 @@ namespace CrawlerWebApi.Services
         private readonly IConfiguration AppConfiguration;
         private readonly string SiteArtifactsWinPath;
         private readonly CrawlArtifacts CrawlerArtifacts;
+        private readonly DiffArtifacts DiffArtifacts;
 
         public TestService(
             IConfiguration AppConfiguration,
-            CrawlArtifacts CrawlerArtifacts)
+            CrawlArtifacts CrawlerArtifacts,
+            DiffArtifacts DiffArtifacts)
         {
             this.AppConfiguration = AppConfiguration;
             SiteArtifactsWinPath = this.AppConfiguration.GetValue<string>("SiteArtifactsWinPath");
             this.CrawlerArtifacts = CrawlerArtifacts;
+            this.DiffArtifacts = DiffArtifacts;
         }
 
         public async Task<CrawlTest> GetCrawlTest(string guid)
@@ -64,6 +67,11 @@ namespace CrawlerWebApi.Services
         public async Task<string> GetAppText(string testGuid, string appGuid)
         {
             return await CrawlerArtifacts.GetAppTextContent(Guid.Parse(testGuid), Guid.Parse(appGuid));
+        }
+        /* Diff tests*/
+        public async Task<List<DiffTest>> GetDiffTests()
+        {
+            return await DiffArtifacts.GetDiffTests();
         }
     }
 }

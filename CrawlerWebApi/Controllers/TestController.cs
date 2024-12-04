@@ -39,7 +39,19 @@ namespace CrawlerWebApi.Controllers
             CrawlTest = testModel;
             DiffTest = diffTest;
         }
-
+        
+        //
+        // -
+        // --
+        // ---
+        // ----
+        // test launch endpoints
+        // ----
+        // ---
+        // --
+        // -
+        //
+        
         [HttpPost("crawl-tests/launch")]
         public async Task<IActionResult> RunTests([FromBody] BaselineTestPostRequestModel request)
         {
@@ -144,7 +156,19 @@ namespace CrawlerWebApi.Controllers
                 }
             }
         }
-
+        
+        //
+        // -
+        // --
+        // ---
+        // ----
+        // crawl test endpoints
+        // ----
+        // ---
+        // --
+        // -
+        //
+        
         [HttpGet("crawl-tests")]
         public async Task<IActionResult> GetCrawlTests()
         {
@@ -417,5 +441,46 @@ namespace CrawlerWebApi.Controllers
             }
         }
 
+        //
+        // -
+        // --
+        // ---
+        // ----
+        // diff test endpoints
+        // ----
+        // ---
+        // --
+        // -
+        //
+        [HttpGet("diff-tests")]
+        public async Task<IActionResult> GetDiffTests()
+        {
+            try
+            {
+                var tests = await TestService.GetDiffTests();
+
+                if (tests == null)
+                {
+                    return NotFound(new { message = "Diff tests not found" });
+                }
+
+                return Ok(tests);
+            }
+            catch (ArgumentException ex)
+            {
+                // Direct ArgumentException
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                // Check for wrapped exceptions
+                var errorMessage = ex.InnerException != null
+                    ? ex.InnerException.Message
+                    : ex.Message;
+
+                Logger.Error(ex, "<<Error>> An error occurred while trying to get a list of all diff tests.");
+                return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
+            }
+        }
     }
 }
