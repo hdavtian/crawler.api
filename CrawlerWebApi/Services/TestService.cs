@@ -87,5 +87,15 @@ namespace CrawlerWebApi.Services
         {
             return await DiffArtifactManager.GetAppDiff(Guid.Parse(testGuid), Guid.Parse(appGuid));
         }
+
+        public async Task<List<ScreenshotDiff>> GetAllPageScreenshotDiffs(string testGuid)
+        {
+            return await DiffArtifactManager.GetAllPageScreenshotDiffs(Guid.Parse(testGuid));
+        }
+
+        public async Task<ScreenshotDiff> GetPageScreenshotDiff(string testGuid, string appGuid)
+        {
+            return await DiffArtifactManager.GetPageScreenshotDiff(Guid.Parse(testGuid), Guid.Parse(appGuid));
+        }
     }
 }

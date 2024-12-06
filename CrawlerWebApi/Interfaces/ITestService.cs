@@ -18,5 +18,7 @@ namespace CrawlerWebApi.Interfaces
         Task<DiffTest> GetDiffTest(string testGuid);
         Task<List<AppDiffs>> GetAllAppDiffs(string testGuid);
         Task<AppDiffs> GetAppDiffs(string testGuid, string appGuid);
+        Task<List<ScreenshotDiff>> GetAllPageScreenshotDiffs(string testGuid);
+        Task<ScreenshotDiff> GetPageScreenshotDiff(string testGuid, string pageGuid);
     }
 }

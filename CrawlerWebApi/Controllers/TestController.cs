@@ -585,5 +585,74 @@ namespace CrawlerWebApi.Controllers
                 return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
             }
         }
+        [HttpGet("diff-tests/{testGuid}/page-screenshot-diffs")]
+        public async Task<IActionResult> GetAllPageScreenshotDiffs(string testGuid)
+        {
+            if (string.IsNullOrWhiteSpace(testGuid))
+                return BadRequest(new { message = "Guid parameter cannot be null or empty." });
+
+            try
+            {
+                var appDiffs = await TestService.GetAllPageScreenshotDiffs(testGuid);
+
+                if (appDiffs == null)
+                {
+                    return NotFound(new { message = "Page screenshot diffs not found for the provided GUID." });
+                }
+
+                return Ok(appDiffs);
+            }
+            catch (ArgumentException ex)
+            {
+                // Direct ArgumentException
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                // Check for wrapped exceptions
+                var errorMessage = ex.InnerException != null
+                    ? ex.InnerException.Message
+                    : ex.Message;
+
+                Logger.Error(ex, "<<Error>> An error occurred while getting page screenshot diffs.");
+                return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
+            }
+        }
+        [HttpGet("diff-tests/{testGuid}/page-screenshot-diffs/{pageGuid}")]
+        public async Task<IActionResult> GetPageScreenshotDiffs(string testGuid, string pageGuid)
+        {
+            if (string.IsNullOrWhiteSpace(testGuid))
+                return BadRequest(new { message = "Test guid parameter cannot be null or empty." });
+
+            if (string.IsNullOrWhiteSpace(pageGuid))
+                return BadRequest(new { message = "Page guid parameter cannot be null or empty." });
+
+            try
+            {
+                var pageScreenshotDiff = await TestService.GetPageScreenshotDiff(testGuid, pageGuid);
+
+                if (pageScreenshotDiff == null)
+                {
+                    return NotFound(new { message = "Page screenshot diffs not found for the provided GUID." });
+                }
+
+                return Ok(pageScreenshotDiff);
+            }
+            catch (ArgumentException ex)
+            {
+                // Direct ArgumentException
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                // Check for wrapped exceptions
+                var errorMessage = ex.InnerException != null
+                    ? ex.InnerException.Message
+                    : ex.Message;
+
+                Logger.Error(ex, "<<Error>> An error occurred while getting page screenshot diffs.");
+                return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
+            }
+        }
     }
 }
