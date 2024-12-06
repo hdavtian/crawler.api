@@ -47,6 +47,7 @@ namespace CrawlerWebApi.Services
             try
             {
                 Logger.Info("<<TestStarted>>");
+                Logger.Info("TestId: " + CrawlTest.Id);
 
                 LogBaselineTestPostRequestModel(request);
 

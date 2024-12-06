@@ -2,11 +2,13 @@
 using CrawlerWebApi.Interfaces;
 using CrawlerWebApi.Models;
 using CrawlerWebApi.Services;
+using CrawlerWebApi.signalR;
 using IC.Test.Playwright.Crawler.Drivers;
 using IC.Test.Playwright.Crawler.Models;
 using IC.Test.Playwright.Crawler.Utility;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Microsoft.Playwright;
 using NLog;
@@ -39,7 +41,7 @@ namespace CrawlerWebApi.Controllers
             CrawlTest = testModel;
             DiffTest = diffTest;
         }
-        
+
         //
         // -
         // --
@@ -51,7 +53,7 @@ namespace CrawlerWebApi.Controllers
         // --
         // -
         //
-        
+
         [HttpPost("crawl-tests/launch")]
         public async Task<IActionResult> RunTests([FromBody] BaselineTestPostRequestModel request)
         {
@@ -60,62 +62,64 @@ namespace CrawlerWebApi.Controllers
                 return BadRequest("Invalid request");
             }
 
-            // Generate a unique TestId (GUID) to be used in creating a unique log file per test (for concurrency)
+            // Generate a unique TestId (GUID)
             var testGuid = Guid.NewGuid();
             CrawlTest.Id = testGuid;
             CrawlTest.LogFileName = $"crawl-{testGuid}.log";
 
-            using (Logger.PushScopeProperty("TestType", "crawl"))
-            using (Logger.PushScopeProperty("TestId", testGuid))
-            {
-                try
-                {
-                    // For testing purposes; remove these hardcoded values when deploying
-                    /*
-                    request.Url = "https://BostonCommonClientQAUATV4.investcloud.com";
-                    request.Username = "client@bostoncommon.com";
-                    request.Password = "Mustang.2022";
-                    request.Browser = "Chrome";
-                    request.Headless = true;
-                    request.WindowWidth = 1200;
-                    request.WindowHeight = 800;
-                    request.RecordVideo = true;
-                    request.TakePageScreenshots = true;
-                    request.TakeAppScreenshots  = true;
-                    request.CaptureAppHtml = true;
-                    request.CaptureAppText = true;
-                    request.GenerateAxeReports = true;
-                    request.CaptureNetworkTraffic = true;
-                    request.SaveHar = true;
-                    */
-                    // Return the GUID immediately to the front end
-                    Response.StatusCode = (int)HttpStatusCode.OK;
-                    await Response.WriteAsync($"{{\"testGuid\":\"{testGuid}\"}}");
+            // Immediately send the testGuid to the frontend
+            Response.StatusCode = (int)HttpStatusCode.OK;
+            await Response.WriteAsync($"{{\"testGuid\":\"{testGuid}\"}}");
 
-                    // Continue running the test in the background
-                    _ = Task.Run(async () =>
+            // Start readiness check and test execution in the background
+            _ = Task.Run(async () =>
+            {
+                using (ScopeContext.PushProperty("TestType", "crawl"))
+                using (ScopeContext.PushProperty("TestId", testGuid))
+                {
+                    try
                     {
+                        Logger.Info($"Test {testGuid} is starting...");
+
+                        // Wait for frontend readiness
+                        int maxRetries = 10;
+                        int delayMilliseconds = 500; // 500ms between retries
+                        while (!LoggingHub.IsGroupReady(testGuid.ToString()) && maxRetries > 0)
+                        {
+                            await Task.Delay(delayMilliseconds);
+                            maxRetries--;
+                        }
+
+                        if (!LoggingHub.IsGroupReady(testGuid.ToString()))
+                        {
+                            Logger.Warn($"Test {testGuid} frontend did not signal readiness within the timeout.");
+                            return; // End the task early if readiness is not signaled
+                        }
+
+                        Logger.Info("Frontend signaled readiness. Proceeding with the test...");
+
+                        // Continue with the actual test execution
                         var result = await BaselineTestService.RunBaselineTestAsync(request);
 
                         if (result.Success)
                         {
-                            Logger.Info("Crawl operation completed successfully");
+                            SignalRLogger.SendLogMessage(testGuid.ToString(), "Crawl operation completed successfully");
                         }
                         else
                         {
-                            Logger.Error($"<<Error>> Test run failed: {result.ErrorMessage}");
+                            SignalRLogger.SendLogMessage(testGuid.ToString(), $"<<Error>> Test run failed: {result.ErrorMessage}");
                         }
-                    });
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Error(ex, "<<Error>> An error occurred during the test execution.");
+                        SignalRLogger.SendLogMessage(testGuid.ToString(), "<<Error>> Unexpected error occurred.");
+                    }
+                }
+            });
 
-                    // Returning empty result after writing the GUID to response
-                    return new EmptyResult(); 
-                }
-                catch (Exception ex)
-                {
-                    Logger.Error(ex, "<<Error>> An error occurred while running the baseline test.");
-                    return StatusCode(StatusCodes.Status500InternalServerError, $"An error occurred: {ex.Message}");
-                }
-            }
+            // Return an empty result immediately after sending the testGuid
+            return new EmptyResult();
         }
 
         [HttpPost("diff-tests/launch")]
@@ -126,17 +130,17 @@ namespace CrawlerWebApi.Controllers
                 return BadRequest("Invalid request");
             }
 
-            // Generate a unique TestId (GUID) to be used in creating a unique log file per test (for concurrency)
+            // Generate a unique TestId (GUID)
             var testGuid = Guid.NewGuid();
             DiffTest.Id = testGuid;
             DiffTest.LogFileName = $"diff-{testGuid}.log";
 
-            using (Logger.PushScopeProperty("TestType", "diff"))
-            using (Logger.PushScopeProperty("TestId", testGuid))
+            using (ScopeContext.PushProperty("TestType", "diff"))
+            using (ScopeContext.PushProperty("TestId", testGuid))
             {
                 try
                 {
-                    // Return the GUID immediately to the front end
+                    // Return the GUID immediately to the frontend
                     Response.StatusCode = (int)HttpStatusCode.OK;
                     await Response.WriteAsync($"{{\"testGuid\":\"{testGuid}\"}}");
 
@@ -144,10 +148,14 @@ namespace CrawlerWebApi.Controllers
 
                     if (result.Success)
                     {
-                        return Ok(new { message = "Diff operation completed successfully" });
+                        SignalRLogger.SendLogMessage(testGuid.ToString(), "Diff operation completed successfully");
+                    }
+                    else
+                    {
+                        SignalRLogger.SendLogMessage(testGuid.ToString(), $"<<Error>> Diff test run failed: {result.ErrorMessage}");
                     }
 
-                    return StatusCode(StatusCodes.Status500InternalServerError, result.ErrorMessage);
+                    return new EmptyResult();
                 }
                 catch (Exception ex)
                 {
@@ -156,7 +164,8 @@ namespace CrawlerWebApi.Controllers
                 }
             }
         }
-        
+
+
         //
         // -
         // --
@@ -168,7 +177,7 @@ namespace CrawlerWebApi.Controllers
         // --
         // -
         //
-        
+
         [HttpGet("crawl-tests")]
         public async Task<IActionResult> GetCrawlTests()
         {
