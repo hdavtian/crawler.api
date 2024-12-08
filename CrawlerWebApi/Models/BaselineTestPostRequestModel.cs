@@ -1,4 +1,6 @@
-﻿namespace CrawlerWebApi.Models
+﻿using IC.Test.Playwright.Crawler.Models;
+
+namespace CrawlerWebApi.Models
 {
     public class BaselineTestPostRequestModel
     {
@@ -17,5 +19,6 @@
         public bool GenerateAxeReports {  get; set; }
         public bool CaptureNetworkTraffic {  get; set; }
         public bool SaveHar { get; set; }
+        public PtierVersionModel PtierVersion { get; set; }
     }
 }
