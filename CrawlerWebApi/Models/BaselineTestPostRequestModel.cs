@@ -20,5 +20,6 @@ namespace CrawlerWebApi.Models
         public bool CaptureNetworkTraffic {  get; set; }
         public bool SaveHar { get; set; }
         public PtierVersionModel PtierVersion { get; set; }
+        public string ExtraUrls { get; set; }
     }
 }
