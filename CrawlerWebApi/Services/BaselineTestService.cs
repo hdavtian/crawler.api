@@ -11,130 +11,117 @@ namespace CrawlerWebApi.Services
 {
     public class BaselineTestService : IBaselineTestService
     {
-        private readonly PlaywrightContext _playwrightContext;
-        private readonly LoginDriver _loginDriver;
-        private readonly TestModel _testModel;
-        private readonly CrawlDriver _crawlDriver;
-        private readonly CrawlContext _crawlContext;
-        private readonly Logger _logger;
-        private readonly string _apiRootWinPath;
-        private readonly string _siteArtifactsWinPath;
-        private readonly WriterQueueService _writerQueueService;
+        private readonly PlaywrightContext PlaywrightContext;
+        private readonly LoginDriver LoginDriver;
+        private readonly CrawlTest CrawlTest;
+        private readonly CrawlDriver CrawlDriver;
+        private readonly CrawlContext CrawlContext;
+        private readonly Logger Logger;
+        private readonly string ApiRootWinPath;
+        private readonly string SiteArtifactsWinPath;
+        private readonly WriterQueueService WriterQueueService;
 
         public BaselineTestService(
-            PlaywrightContext playwrightContext,
-            LoginDriver loginDriver,
-            TestModel testModel,
-            CrawlDriver crawlDriver,
-            CrawlContext crawlContext,
-            IConfiguration configuration,
-            WriterQueueService writerQueueService
+            PlaywrightContext PlaywrightContext,
+            LoginDriver LoginDriver,
+            CrawlTest CrawlTest,
+            CrawlDriver CrawlDriver,
+            CrawlContext CrawlContext,
+            IConfiguration AppConfiguration,
+            WriterQueueService WriterQueueService
         )
         {
-            _playwrightContext = playwrightContext;
-            _loginDriver = loginDriver;
-            _testModel = testModel;
-            _crawlDriver = crawlDriver;
-            _crawlContext = crawlContext;
-            _logger = LogManager.GetCurrentClassLogger();
-            _apiRootWinPath = configuration["ApiRootWinPath"];
-            _siteArtifactsWinPath = configuration["SiteArtifactsWinPath"];
-            _writerQueueService = writerQueueService;
+            this.PlaywrightContext = PlaywrightContext;
+            this.LoginDriver = LoginDriver;
+            this.CrawlTest = CrawlTest;
+            this.CrawlDriver = CrawlDriver;
+            this.CrawlContext = CrawlContext;
+            Logger = LogManager.GetCurrentClassLogger();
+            ApiRootWinPath = AppConfiguration["ApiRootWinPath"];
+            SiteArtifactsWinPath = AppConfiguration["SiteArtifactsWinPath"];
+            this.WriterQueueService = WriterQueueService;
         }
 
         public async Task<TestResult> RunBaselineTestAsync(BaselineTestPostRequestModel request)
         {
             try
             {
-                _logger.Info("<<TestStarted>>");
+                Logger.Info("<<TestStarted>>");
+                Logger.Info("TestId: " + CrawlTest.Id);
 
                 LogBaselineTestPostRequestModel(request);
 
-                string url = request.Url;
-                string username = request.Username;
-                string password = request.Password;
-                bool headless = request.Headless;
-                string browser = request.Browser;
-                int windowWidth = request.WindowWidth;
-                int windowHeight = request.WindowHeight;
-                bool recordVideo = request.RecordVideo;
-                bool takePageScreenshots = request.TakePageScreenshots;
-                bool takeAppScreenshots = request.TakeAppScreenshots;
-                bool captureAppHtml = request.CaptureAppHtml;
-                bool captureAppText = request.CaptureAppText;
-                bool generateAxeReports = request.GenerateAxeReports;
-                bool captureNetworkTraffic = request.CaptureNetworkTraffic;
-                bool saveHar = request.SaveHar;
+                // lets set relavant flags in CrawlContext
+                CrawlContext.TakePageScreenshots = request.TakePageScreenshots;
+                CrawlContext.TakeAppScreenshots = request.TakeAppScreenshots;
+                CrawlContext.CaptureAppHtml = request.CaptureAppHtml;
+                CrawlContext.CaptureAppText = request.CaptureAppText;
+                CrawlContext.GenerateAxeReports = request.GenerateAxeReports;
+                CrawlContext.CaptureNetworkTraffic = request.CaptureNetworkTraffic;
 
-                // lets set relavant flags in _crawlContext
-                _crawlContext.TakePageScreenshots = takePageScreenshots;
-                _crawlContext.TakeAppScreenshots = takeAppScreenshots;
-                _crawlContext.CaptureAppHtml = captureAppHtml;
-                _crawlContext.CaptureAppText = captureAppText;
-                _crawlContext.GenerateAxeReports = generateAxeReports;
-                _crawlContext.CaptureNetworkTraffic = captureNetworkTraffic;
-
-                string _harFileName = $"{_testModel.Id}.har";
+                string _harFileName = $"{CrawlTest.Id}.har";
 
                 // Set up test model
                 try
                 {
-                    TimerUtil.StartTimer(_testModel.Timers, "ScenarioDuration");
-                    _testModel.Name = "Baseline test: " + url;
-                    _testModel.Description = "Some description";
-                    _testModel.DateTime = DateTime.Now;
-                    _testModel.Browser.Width = windowWidth;
-                    _testModel.Browser.Height = windowHeight;
-                    string projectNameSubdomain = UrlUtil.GetSubdomainFromUrl(url).ToLower();
-                    _testModel.BaseSaveFolder = PathUtil.CreateSavePath("crawl-tests", projectNameSubdomain, projectNameSubdomain, windowWidth, windowHeight, _testModel.Id.ToString());
-                    _logger.Info("Test model set up successfully.");
-                    _logger.Info($"BaseSaveFolder: {_testModel.BaseSaveFolder}");
+                    TimerUtil.StartTimer(CrawlTest.Timers, "ScenarioDuration");
+                    CrawlTest.Name = "";
+                    CrawlTest.Description = "";
+                    CrawlTest.DateTime = DateTime.Now;
+                    CrawlTest.Browser.Width = request.WindowWidth;
+                    CrawlTest.Browser.Height = request.WindowHeight;
+                    string projectNameSubdomain = UrlUtil.GetSubdomainFromUrl(request.Url).ToLower();
+                    CrawlTest.BaseSaveFolder = PathUtil.CreateSavePath("crawl-tests", projectNameSubdomain, request.WindowWidth, request.WindowHeight, CrawlTest.Id.ToString());
+                    CrawlTest.ExtraUrls = request.ExtraUrls;
+                    CrawlTest.PtierVersion = request.PtierVersion;
+                    Logger.Info("Test model set up successfully.");
+                    Logger.Info($"BaseSaveFolder: {CrawlTest.BaseSaveFolder}");
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error(ex, "<<Error>> Failed to set up test model.");
-                    _logger.Info("<<TestEnded>>");
+                    Logger.Error(ex, "<<Error>> Failed to set up test model.");
+                    Logger.Info("<<TestEnded>>");
                     return new TestResult { Success = false, ErrorMessage = "Failed to set up test model." };
                 }
 
                 // Initialize PlaywrightContext
                 try
                 {
-                    _playwrightContext._testId = _testModel.Id;
-                    _playwrightContext.SetBrowserTypeByName(browser);
-                    _playwrightContext._headless = _testModel.Browser.Headless = request.Headless;
-                    _playwrightContext._browserWidth = windowWidth;
-                    _playwrightContext._browserHeight = windowHeight;
+                    PlaywrightContext._testId = CrawlTest.Id;
+                    PlaywrightContext.SetBrowserTypeByName(request.Browser);
+                    PlaywrightContext._headless = CrawlTest.Browser.Headless = request.Headless;
+                    PlaywrightContext._browserWidth = request.WindowWidth;
+                    PlaywrightContext._browserHeight = request.WindowHeight;
 
-                    _playwrightContext._recordVideo = recordVideo;
-                    if (recordVideo)
+                    PlaywrightContext._recordVideo = request.RecordVideo;
+                    if (request.RecordVideo)
                     {
-                        _playwrightContext._videoSavePath = Path.Combine(_testModel.BaseSaveFolder, "videos");
+                        PlaywrightContext._videoSavePath = Path.Combine(CrawlTest.BaseSaveFolder, "videos");
                     }
                     
-                    _playwrightContext._saveHar = saveHar;
+                    PlaywrightContext._saveHar = request.SaveHar;
 
-                    if (saveHar)
+                    if (request.SaveHar)
                     {
-                        _playwrightContext._harPath = _testModel.BaseSaveFolder;
+                        PlaywrightContext._harPath = CrawlTest.BaseSaveFolder;
                     }
 
-                    await _playwrightContext.InitializeAsync();
-                    _testModel.Browser.Name = _playwrightContext.BrowserName;
-                    _logger.Info("Playwright context initialized successfully.");
+                    await PlaywrightContext.InitializeAsync();
+                    CrawlTest.Browser.Name = PlaywrightContext.BrowserName;
+                    Logger.Info("Playwright context initialized successfully.");
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error(ex, "<<Error>> Failed to initialize Playwright context.");
-                    _logger.Info("<<TestEnded>>");
+                    Logger.Error(ex, "<<Error>> Failed to initialize Playwright context.");
+                    Logger.Info("<<TestEnded>>");
                     return new TestResult { Success = false, ErrorMessage = "Failed to initialize Playwright context." };
                 }
 
                 // Setup network interception
                 List<NetworkData> _networkData = new List<NetworkData>();
-                if (captureNetworkTraffic)
+                if (request.CaptureNetworkTraffic)
                 {
-                    var page = _playwrightContext.Page;
+                    var page = PlaywrightContext.Page;
                     string _currentPageUrl = page.Url;
 
                     try
@@ -144,13 +131,13 @@ namespace CrawlerWebApi.Services
                             if (frame == page.MainFrame)
                             {
                                 _currentPageUrl = frame.Url;
-                                _logger.Info($"Navigated to: {_currentPageUrl}");
+                                Logger.Info($"Navigated to: {_currentPageUrl}");
                             }
                         };
 
                         page.Request += (_, request) =>
                         {
-                            //_logger.Info($"Request intercepted: {request.Url}");
+                            //Logger.Info($"Request intercepted: {request.Url}");
                             _networkData.Add(new NetworkData
                             {
                                 Url = request.Url,
@@ -163,19 +150,19 @@ namespace CrawlerWebApi.Services
 
                         page.Response += async (_, response) =>
                         {
-                            //_logger.Info($"Response intercepted: {response.Url} with status {response.Status}");
+                            //Logger.Info($"Response intercepted: {response.Url} with status {response.Status}");
                             var matchingRequest = _networkData.FirstOrDefault(r => r.Url == response.Url);
                             if (matchingRequest != null)
                             {
                                 matchingRequest.StatusCode = response.Status;
                             }
                         };
-                        //_logger.Info("Network interception set up successfully.");
+                        //Logger.Info("Network interception set up successfully.");
                     }
                     catch (Exception ex)
                     {
-                        _logger.Error(ex, "<<Error>> Failed to set up network interception.");
-                        _logger.Info("<<TestEnded>>");
+                        Logger.Error(ex, "<<Error>> Failed to set up network interception.");
+                        Logger.Info("<<TestEnded>>");
                         return new TestResult { Success = false, ErrorMessage = "Failed to set up network interception." };
                     }
                 }
@@ -183,123 +170,130 @@ namespace CrawlerWebApi.Services
                 // Perform login
                 try
                 {
-                    await _loginDriver.LoginToApplication(url, username, password);
-                    _logger.Info("Login performed successfully.");
+                    await LoginDriver.LoginToApplication(request.Url, request.Username, request.Password);
+                    Logger.Info("Login performed successfully.");
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error(ex, "<<Error>> Failed during login process.");
-                    _logger.Info("<<TestEnded>>");
+                    Logger.Error(ex, "<<Error>> Failed during login process.");
+                    Logger.Info("<<TestEnded>>");
                     return new TestResult { Success = false, ErrorMessage = "Failed during login process." };
                 }
 
                 // Perform crawl
                 try
                 {
-                    await _crawlDriver.Crawl(_testModel.BaseSaveFolder, _testModel.BaseUrl);
-                    _logger.Info("Crawl completed successfully.");
+                    await CrawlDriver.Crawl();
+                    Logger.Info("Crawl completed successfully.");
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error(ex, "<<Error>> Failed during crawl process.");
-                    _logger.Info("<<TestEnded>>");
+                    Logger.Error(ex, "<<Error>> Failed during crawl process.");
+                    Logger.Info("<<TestEnded>>");
                     return new TestResult { Success = false, ErrorMessage = "Failed during crawl process." };
                 }
 
                 // Stop timer and assign duration
                 try
                 {
-                    TimerUtil.StopTimer(_testModel.Timers, "ScenarioDuration");
-                    _testModel.Duration = TimerUtil.GetElapsedTime(_testModel.Timers, "ScenarioDuration");
-                    _testModel.BaseUrl = _crawlContext.BaseUrl;
-                    _logger.Info("Timer stopped and duration assigned successfully.");
+                    TimerUtil.StopTimer(CrawlTest.Timers, "ScenarioDuration");
+                    CrawlTest.Duration = TimerUtil.GetElapsedTime(CrawlTest.Timers, "ScenarioDuration");
+                    CrawlTest.BaseUrl = request.Url;
+                    Logger.Info("Timer stopped and duration assigned successfully.");
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error(ex, "<<Error>> Failed to stop timer and assign duration.");
-                    _logger.Info("<<TestEnded>>");
+                    Logger.Error(ex, "<<Error>> Failed to stop timer and assign duration.");
+                    Logger.Info("<<TestEnded>>");
                     return new TestResult { Success = false, ErrorMessage = "Failed to stop timer and assign duration." };
                 }
 
                 // Save reports
                 try
                 {
-                    if (captureNetworkTraffic)
+                    if (request.CaptureNetworkTraffic)
                     {
-                        ReportWriter.SaveModelAsJsonFile(_networkData, _testModel.BaseSaveFolder, "networkData");
-                        _logger.Info("Network log reports saved successfully.");
+                        ReportWriter.SaveModelAsJsonFile(_networkData, CrawlTest.BaseSaveFolder, "networkData");
+                        Logger.Info("Network log reports saved successfully.");
                     }
 
-                    ReportWriter.SaveModelAsJsonFile(_testModel, _testModel.BaseSaveFolder, "test-info");
-                    ReportWriter.SaveReport(_crawlContext.VisitedUrls, _testModel.BaseSaveFolder, "urls");
+                    // Add totals to CrawlTest to be included in manifest and test-info.json files
+                    CrawlTest.UrlTotal = CrawlContext.VisitedUrls.Count;
+                    CrawlTest.AppsUniqueTotal = ReportWriter.GetUniqueAppTotal(CrawlContext.IcWebPages);
+                    CrawlTest.AppsTotal = ReportWriter.GetAllAppsTotal(CrawlContext.IcWebPages);
+                    CrawlTest.PageScreenshotsTotal = CrawlContext.PageScreenshots.Count;
+                    CrawlTest.AppScreenshotsTotal = CrawlContext.AppScreenshots.Count;
+
+                    ReportWriter.SaveModelAsJsonFile(CrawlTest, CrawlTest.BaseSaveFolder, "test-info");
+                    ReportWriter.SaveReport(CrawlContext.VisitedUrls, CrawlTest.BaseSaveFolder, "urls");
                     
-                    if (captureAppHtml)
+                    if (request.CaptureAppHtml)
                     {
-                        ReportWriter.SaveReport(_crawlContext.AppMarkups, _testModel.BaseSaveFolder, "app-markup");
-                        _logger.Info("Captured App Html log reports saved successfully.");
+                        ReportWriter.SaveReport(CrawlContext.AppMarkups, CrawlTest.BaseSaveFolder, "app-html");
+                        Logger.Info("Captured App Html log reports saved successfully.");
                     }
 
-                    if (captureAppText)
+                    if (request.CaptureAppText)
                     {
-                        ReportWriter.SaveReport(_crawlContext.AppTexts, _testModel.BaseSaveFolder, "app-text");
-                        _logger.Info("Captured App Text log reports saved successfully.");
+                        ReportWriter.SaveReport(CrawlContext.AppTexts, CrawlTest.BaseSaveFolder, "app-text");
+                        Logger.Info("Captured App Text log reports saved successfully.");
                     }
 
-                    if (takePageScreenshots)
+                    if (request.TakePageScreenshots)
                     {
-                        ReportWriter.SaveReport(_crawlContext.PageScreenshots, _testModel.BaseSaveFolder, "page-screenshots");
-                        _logger.Info("Captured Page screenshots log reports saved successfully.");
+                        ReportWriter.SaveReport(CrawlContext.PageScreenshots, CrawlTest.BaseSaveFolder, "page-screenshots");
+                        Logger.Info("Captured Page screenshots log reports saved successfully.");
                     }
 
-                    if (takeAppScreenshots)
+                    if (request.TakeAppScreenshots)
                     {
-                        ReportWriter.SaveReport(_crawlContext.AppScreenshots, _testModel.BaseSaveFolder, "app-screenshots");
-                        _logger.Info("Captured App screenshots log reports saved successfully.");
+                        ReportWriter.SaveReport(CrawlContext.AppScreenshots, CrawlTest.BaseSaveFolder, "app-screenshots");
+                        Logger.Info("Captured App screenshots log reports saved successfully.");
                     }
 
-                    ReportWriter.SaveReport(_crawlContext.IcWebPages, _testModel.BaseSaveFolder, "pages-and-apps");
-                    string testsManifestFile = Path.Combine(_siteArtifactsWinPath, "tests.json");
+                    ReportWriter.SaveReport(CrawlContext.IcWebPages, CrawlTest.BaseSaveFolder, "pages-and-apps");
+                    string testsManifestFile = Path.Combine(SiteArtifactsWinPath, "tests.json");
 
                     // Update the manifest
-                    await _writerQueueService.EnqueueAsync(async () =>
+                    await WriterQueueService.EnqueueAsync(async () =>
                     {
-                        ReportWriter.UpdateJsonManifest(testsManifestFile, _testModel);
+                        ReportWriter.UpdateJsonManifest(testsManifestFile, CrawlTest);
                         ReportWriter.PruneTestsManifest(testsManifestFile);
                     });
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error(ex, "<<Error>> Failed to save reports.");
-                    _logger.Info("<<TestEnded>>");
+                    Logger.Error(ex, "<<Error>> Failed to save reports.");
+                    Logger.Info("<<TestEnded>>");
                     return new TestResult { Success = false, ErrorMessage = "Failed to save reports." };
                 }
 
                 // Dispose of Playwright context
                 try
                 {
-                    await _playwrightContext.DisposeAsync();
-                    _logger.Info("Playwright context disposed successfully.");
+                    await PlaywrightContext.DisposeAsync();
+                    Logger.Info("Playwright context disposed successfully.");
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error(ex, "<<Error>> Failed to dispose Playwright context.");
-                    _logger.Info("<<TestEnded>>");
+                    Logger.Error(ex, "<<Error>> Failed to dispose Playwright context.");
+                    Logger.Info("<<TestEnded>>");
                     return new TestResult { Success = false, ErrorMessage = "Failed to dispose Playwright context." };
                 }
 
                 // If everything is successful
-                _logger.Info("Baseline test executed successfully.");
+                Logger.Info("Baseline test executed successfully.");
 
                 // move log to save path
-                FileUtil.MoveFileAsync(@"c:\Temp", _testModel.BaseSaveFolder,_testModel.LogFileName, _logger);
-                _logger.Info("<<TestEnded>>");
+                FileUtil.MoveFileAsync(@"c:\Temp", CrawlTest.BaseSaveFolder,CrawlTest.LogFileName, Logger);
+                Logger.Info("<<TestEnded>>");
 
                 return new TestResult { Success = true };
             }
             catch (Exception ex)
             {
-                _logger.Info("<<TestError>>, <<TestEnded>>");
-                _logger.Error(ex, "<<Error>> Unexpected error during baseline test execution.");
+                Logger.Info("<<TestError>>, <<TestEnded>>");
+                Logger.Error(ex, "<<Error>> Unexpected error during baseline test execution.");
                 return new TestResult { Success = false, ErrorMessage = ex.Message };
             }
         }
@@ -320,7 +314,7 @@ namespace CrawlerWebApi.Services
                 logMessage.AppendLine($"{property.Name}: {value}");
             }
 
-            _logger.Info(logMessage.ToString());
+            Logger.Info(logMessage.ToString());
         }
     }
 }

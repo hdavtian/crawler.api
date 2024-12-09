@@ -12,14 +12,18 @@ public static class Dependencies
     public static IServiceCollection AddProjectDependencies(this IServiceCollection services)
     {
         // Register instance-based dependencies
-        services.AddScoped<TestModel>();
+        services.AddScoped<CrawlTest>();
+        services.AddScoped<DiffTest>();
         services.AddScoped<LoginDriver>();
         services.AddScoped<DiffDriver>();
         services.AddScoped<DiffContext>();
         services.AddScoped<CrawlDriver>();
         services.AddScoped<CrawlContext>();
+        services.AddScoped<CrawlArtifactManager>();
+        services.AddScoped<DiffArtifactManager>();
         services.AddScoped<CrawlerCommon>();
         services.AddScoped<AxeHelper>();
+        services.AddScoped<ITestService, TestService>();
         services.AddScoped<IBaselineTestService, BaselineTestService>();
         services.AddScoped<IDiffTestService, DiffTestService>();
         services.AddSingleton<WriterQueueService>();
