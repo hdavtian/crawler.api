@@ -79,7 +79,7 @@ namespace CrawlerWebApi.Controllers
                 {
                     try
                     {
-                        Logger.Info($"Test {testGuid} is starting...");
+                        Logger.Info($"Crawl test {testGuid} is starting...");
 
                         // Wait for frontend readiness
                         int maxRetries = 10;
@@ -135,6 +135,62 @@ namespace CrawlerWebApi.Controllers
             DiffTest.Id = testGuid;
             DiffTest.LogFileName = $"diff-{testGuid}.log";
 
+            // Immediately send the testGuid to the frontend
+            Response.StatusCode = (int)HttpStatusCode.OK;
+            await Response.WriteAsync($"{{\"testGuid\":\"{testGuid}\"}}");
+
+            // Start readiness check and test execution in the background
+            _ = Task.Run(async () =>
+            {
+                using (ScopeContext.PushProperty("TestType", "diff"))
+                using (ScopeContext.PushProperty("TestId", testGuid))
+                {
+                    try
+                    {
+                        Logger.Info($"Diff test {testGuid} is starting...");
+
+                        // Wait for frontend readiness
+                        int maxRetries = 10;
+                        int delayMilliseconds = 500; // 500ms between retries
+                        while (!LoggingHub.IsGroupReady(testGuid.ToString()) && maxRetries > 0)
+                        {
+                            await Task.Delay(delayMilliseconds);
+                            maxRetries--;
+                        }
+
+                        if (!LoggingHub.IsGroupReady(testGuid.ToString()))
+                        {
+                            Logger.Warn($"Test {testGuid} frontend did not signal readiness within the timeout.");
+                            return; // End the task early if readiness is not signaled
+                        }
+
+                        Logger.Info("Frontend signaled readiness. Proceeding with the test...");
+
+                        // Continue with the actual test execution
+                        var result = await DiffTestService.RunDiffTestAsync(request);
+
+                        if (result.Success)
+                        {
+                            SignalRLogger.SendLogMessage(testGuid.ToString(), "Diff operation completed successfully");
+                        }
+                        else
+                        {
+                            SignalRLogger.SendLogMessage(testGuid.ToString(), $"<<Error>> Diff test run failed: {result.ErrorMessage}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Error(ex, "<<Error>> An error occurred during the diff test execution.");
+                        SignalRLogger.SendLogMessage(testGuid.ToString(), "<<Error>> Unexpected error occurred.");
+                    }
+                }
+            });
+
+            // Return an empty result immediately after sending the testGuid
+            return new EmptyResult();
+
+            /*
+
             using (ScopeContext.PushProperty("TestType", "diff"))
             using (ScopeContext.PushProperty("TestId", testGuid))
             {
@@ -163,6 +219,7 @@ namespace CrawlerWebApi.Controllers
                     return StatusCode(StatusCodes.Status500InternalServerError, $"An error occurred: {ex.Message}");
                 }
             }
+            */
         }
 
 
