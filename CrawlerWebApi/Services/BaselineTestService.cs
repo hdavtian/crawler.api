@@ -51,29 +51,13 @@ namespace CrawlerWebApi.Services
 
                 LogBaselineTestPostRequestModel(request);
 
-                string url = request.Url;
-                string username = request.Username;
-                string password = request.Password;
-                bool headless = request.Headless;
-                string browser = request.Browser;
-                int windowWidth = request.WindowWidth;
-                int windowHeight = request.WindowHeight;
-                bool recordVideo = request.RecordVideo;
-                bool takePageScreenshots = request.TakePageScreenshots;
-                bool takeAppScreenshots = request.TakeAppScreenshots;
-                bool captureAppHtml = request.CaptureAppHtml;
-                bool captureAppText = request.CaptureAppText;
-                bool generateAxeReports = request.GenerateAxeReports;
-                bool captureNetworkTraffic = request.CaptureNetworkTraffic;
-                bool saveHar = request.SaveHar;
-
                 // lets set relavant flags in CrawlContext
-                CrawlContext.TakePageScreenshots = takePageScreenshots;
-                CrawlContext.TakeAppScreenshots = takeAppScreenshots;
-                CrawlContext.CaptureAppHtml = captureAppHtml;
-                CrawlContext.CaptureAppText = captureAppText;
-                CrawlContext.GenerateAxeReports = generateAxeReports;
-                CrawlContext.CaptureNetworkTraffic = captureNetworkTraffic;
+                CrawlContext.TakePageScreenshots = request.TakePageScreenshots;
+                CrawlContext.TakeAppScreenshots = request.TakeAppScreenshots;
+                CrawlContext.CaptureAppHtml = request.CaptureAppHtml;
+                CrawlContext.CaptureAppText = request.CaptureAppText;
+                CrawlContext.GenerateAxeReports = request.GenerateAxeReports;
+                CrawlContext.CaptureNetworkTraffic = request.CaptureNetworkTraffic;
 
                 string _harFileName = $"{CrawlTest.Id}.har";
 
@@ -81,13 +65,15 @@ namespace CrawlerWebApi.Services
                 try
                 {
                     TimerUtil.StartTimer(CrawlTest.Timers, "ScenarioDuration");
-                    CrawlTest.Name = "Baseline test: " + url;
-                    CrawlTest.Description = "Some description";
+                    CrawlTest.Name = "";
+                    CrawlTest.Description = "";
                     CrawlTest.DateTime = DateTime.Now;
-                    CrawlTest.Browser.Width = windowWidth;
-                    CrawlTest.Browser.Height = windowHeight;
-                    string projectNameSubdomain = UrlUtil.GetSubdomainFromUrl(url).ToLower();
-                    CrawlTest.BaseSaveFolder = PathUtil.CreateSavePath("crawl-tests", projectNameSubdomain, windowWidth, windowHeight, CrawlTest.Id.ToString());
+                    CrawlTest.Browser.Width = request.WindowWidth;
+                    CrawlTest.Browser.Height = request.WindowHeight;
+                    string projectNameSubdomain = UrlUtil.GetSubdomainFromUrl(request.Url).ToLower();
+                    CrawlTest.BaseSaveFolder = PathUtil.CreateSavePath("crawl-tests", projectNameSubdomain, request.WindowWidth, request.WindowHeight, CrawlTest.Id.ToString());
+                    CrawlTest.ExtraUrls = request.ExtraUrls;
+                    CrawlTest.PtierVersion = request.PtierVersion;
                     Logger.Info("Test model set up successfully.");
                     Logger.Info($"BaseSaveFolder: {CrawlTest.BaseSaveFolder}");
                 }
@@ -102,20 +88,20 @@ namespace CrawlerWebApi.Services
                 try
                 {
                     PlaywrightContext._testId = CrawlTest.Id;
-                    PlaywrightContext.SetBrowserTypeByName(browser);
+                    PlaywrightContext.SetBrowserTypeByName(request.Browser);
                     PlaywrightContext._headless = CrawlTest.Browser.Headless = request.Headless;
-                    PlaywrightContext._browserWidth = windowWidth;
-                    PlaywrightContext._browserHeight = windowHeight;
+                    PlaywrightContext._browserWidth = request.WindowWidth;
+                    PlaywrightContext._browserHeight = request.WindowHeight;
 
-                    PlaywrightContext._recordVideo = recordVideo;
-                    if (recordVideo)
+                    PlaywrightContext._recordVideo = request.RecordVideo;
+                    if (request.RecordVideo)
                     {
                         PlaywrightContext._videoSavePath = Path.Combine(CrawlTest.BaseSaveFolder, "videos");
                     }
                     
-                    PlaywrightContext._saveHar = saveHar;
+                    PlaywrightContext._saveHar = request.SaveHar;
 
-                    if (saveHar)
+                    if (request.SaveHar)
                     {
                         PlaywrightContext._harPath = CrawlTest.BaseSaveFolder;
                     }
@@ -133,7 +119,7 @@ namespace CrawlerWebApi.Services
 
                 // Setup network interception
                 List<NetworkData> _networkData = new List<NetworkData>();
-                if (captureNetworkTraffic)
+                if (request.CaptureNetworkTraffic)
                 {
                     var page = PlaywrightContext.Page;
                     string _currentPageUrl = page.Url;
@@ -184,7 +170,7 @@ namespace CrawlerWebApi.Services
                 // Perform login
                 try
                 {
-                    await LoginDriver.LoginToApplication(url, username, password);
+                    await LoginDriver.LoginToApplication(request.Url, request.Username, request.Password);
                     Logger.Info("Login performed successfully.");
                 }
                 catch (Exception ex)
@@ -197,7 +183,7 @@ namespace CrawlerWebApi.Services
                 // Perform crawl
                 try
                 {
-                    await CrawlDriver.Crawl(CrawlTest.BaseSaveFolder, CrawlTest.BaseUrl);
+                    await CrawlDriver.Crawl();
                     Logger.Info("Crawl completed successfully.");
                 }
                 catch (Exception ex)
@@ -212,7 +198,7 @@ namespace CrawlerWebApi.Services
                 {
                     TimerUtil.StopTimer(CrawlTest.Timers, "ScenarioDuration");
                     CrawlTest.Duration = TimerUtil.GetElapsedTime(CrawlTest.Timers, "ScenarioDuration");
-                    CrawlTest.BaseUrl = CrawlContext.BaseUrl;
+                    CrawlTest.BaseUrl = request.Url;
                     Logger.Info("Timer stopped and duration assigned successfully.");
                 }
                 catch (Exception ex)
@@ -225,7 +211,7 @@ namespace CrawlerWebApi.Services
                 // Save reports
                 try
                 {
-                    if (captureNetworkTraffic)
+                    if (request.CaptureNetworkTraffic)
                     {
                         ReportWriter.SaveModelAsJsonFile(_networkData, CrawlTest.BaseSaveFolder, "networkData");
                         Logger.Info("Network log reports saved successfully.");
@@ -241,25 +227,25 @@ namespace CrawlerWebApi.Services
                     ReportWriter.SaveModelAsJsonFile(CrawlTest, CrawlTest.BaseSaveFolder, "test-info");
                     ReportWriter.SaveReport(CrawlContext.VisitedUrls, CrawlTest.BaseSaveFolder, "urls");
                     
-                    if (captureAppHtml)
+                    if (request.CaptureAppHtml)
                     {
                         ReportWriter.SaveReport(CrawlContext.AppMarkups, CrawlTest.BaseSaveFolder, "app-html");
                         Logger.Info("Captured App Html log reports saved successfully.");
                     }
 
-                    if (captureAppText)
+                    if (request.CaptureAppText)
                     {
                         ReportWriter.SaveReport(CrawlContext.AppTexts, CrawlTest.BaseSaveFolder, "app-text");
                         Logger.Info("Captured App Text log reports saved successfully.");
                     }
 
-                    if (takePageScreenshots)
+                    if (request.TakePageScreenshots)
                     {
                         ReportWriter.SaveReport(CrawlContext.PageScreenshots, CrawlTest.BaseSaveFolder, "page-screenshots");
                         Logger.Info("Captured Page screenshots log reports saved successfully.");
                     }
 
-                    if (takeAppScreenshots)
+                    if (request.TakeAppScreenshots)
                     {
                         ReportWriter.SaveReport(CrawlContext.AppScreenshots, CrawlTest.BaseSaveFolder, "app-screenshots");
                         Logger.Info("Captured App screenshots log reports saved successfully.");

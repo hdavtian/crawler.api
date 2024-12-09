@@ -720,5 +720,31 @@ namespace CrawlerWebApi.Controllers
                 return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
             }
         }
+        // --------------------------------
+        // Other
+        // --------------------------------
+        [HttpGet("proxy/ptier-version")]
+        public async Task<IActionResult> GetVersions([FromQuery] string url)
+        {
+            var endpoint = "https://denpwptool1.investcloud.int/api/release-manager/find-versions?url=" + Uri.EscapeDataString(url);
+
+            using (var httpClient = new HttpClient())
+            {
+                var response = await httpClient.GetAsync(endpoint);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    return StatusCode((int)response.StatusCode, errorContent);
+                }
+
+                var content = await response.Content.ReadAsStringAsync();
+
+                // Deserialize using Newtonsoft.Json
+                var model = Newtonsoft.Json.JsonConvert.DeserializeObject<PtierVersionModel>(content);
+
+                return Ok(model);
+            }
+        }
     }
 }
