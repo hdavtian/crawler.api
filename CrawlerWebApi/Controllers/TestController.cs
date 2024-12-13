@@ -112,8 +112,9 @@ namespace CrawlerWebApi.Controllers
                     }
                     catch (Exception ex)
                     {
-                        Logger.Error(ex, "<<Error>> An error occurred during the test execution.");
-                        SignalRLogger.SendLogMessage(testGuid.ToString(), "<<Error>> Unexpected error occurred.");
+                        string errMsg = "<<Error>> An error occurred during the test execution.";
+                        Logger.Error(ex, errMsg);
+                        SignalRLogger.SendLogMessage(testGuid.ToString(), errMsg);
                     }
                 }
             });
@@ -188,38 +189,6 @@ namespace CrawlerWebApi.Controllers
 
             // Return an empty result immediately after sending the testGuid
             return new EmptyResult();
-
-            /*
-
-            using (ScopeContext.PushProperty("TestType", "diff"))
-            using (ScopeContext.PushProperty("TestId", testGuid))
-            {
-                try
-                {
-                    // Return the GUID immediately to the frontend
-                    Response.StatusCode = (int)HttpStatusCode.OK;
-                    await Response.WriteAsync($"{{\"testGuid\":\"{testGuid}\"}}");
-
-                    var result = await DiffTestService.RunDiffTestAsync(request);
-
-                    if (result.Success)
-                    {
-                        SignalRLogger.SendLogMessage(testGuid.ToString(), "Diff operation completed successfully");
-                    }
-                    else
-                    {
-                        SignalRLogger.SendLogMessage(testGuid.ToString(), $"<<Error>> Diff test run failed: {result.ErrorMessage}");
-                    }
-
-                    return new EmptyResult();
-                }
-                catch (Exception ex)
-                {
-                    Logger.Error(ex, "<<Error>> An error occurred while running the diff test.");
-                    return StatusCode(StatusCodes.Status500InternalServerError, $"An error occurred: {ex.Message}");
-                }
-            }
-            */
         }
 
 
