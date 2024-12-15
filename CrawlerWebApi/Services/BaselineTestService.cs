@@ -6,6 +6,7 @@ using IC.Test.Playwright.Crawler.Utility;
 using NLog;
 using Microsoft.Extensions.Configuration;
 using System.Text;
+using AngleSharp.Dom;
 
 namespace CrawlerWebApi.Services
 {
@@ -190,17 +191,25 @@ namespace CrawlerWebApi.Services
                 }
 
                 // Perform login
-                try
+                if (request.RequiresLogin)
                 {
-                    await LoginDriver.LoginToApplication(request.Url, request.Username, request.Password);
-                    Logger.Info("Login performed successfully.");
-                }
-                catch (Exception ex)
+                    try
+                    {
+                        await LoginDriver.LoginToApplication(request.Url, request.Username, request.Password);
+                        Logger.Info("Login performed successfully.");
+                    }
+                    catch (Exception ex)
+                    {
+                        string errMsg = "<<Error>> Failed during login process.";
+                        Logger.Error(ex, errMsg);
+                        Logger.Info("<<TestEnded>>");
+                        return new TestResult { Success = false, ErrorMessage = errMsg };
+                    }
+                } 
+                else
                 {
-                    string errMsg = "<<Error>> Failed during login process.";
-                    Logger.Error(ex, errMsg);
-                    Logger.Info("<<TestEnded>>");
-                    return new TestResult { Success = false, ErrorMessage = errMsg };
+                    await CrawlerCommon.NavigateToUrlAsync(request.Url);
+                    CrawlTest.BaseUrl = CrawlerCommon.ExtractSchemeAndTLD(request.Url);
                 }
 
                 // Perform crawl
@@ -336,7 +345,7 @@ namespace CrawlerWebApi.Services
             foreach (var property in properties)
             {
                 var value = property.Name.Equals("Password", StringComparison.OrdinalIgnoreCase)
-                    ? "******" // Mask the password value
+                    ? "" // Mask the password value
                     : property.GetValue(model) ?? "null"; // Log the actual value or "null" if not set
 
                 logMessage.AppendLine($"{property.Name}: {value}");

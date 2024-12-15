@@ -62,6 +62,16 @@ namespace CrawlerWebApi.Controllers
                 return BadRequest("Invalid request");
             }
 
+            if (request.RequiresLogin && (String.IsNullOrEmpty(request.Username) || String.IsNullOrEmpty(request.Password)))
+            {
+                return BadRequest("If login is required, you must submit a username and password");
+            }
+
+            if (!request.RequiresLogin && String.IsNullOrEmpty(request.Url))
+            {
+                return BadRequest("For portals that do not require a login you must submit a url");
+            }
+
             // Generate a unique TestId (GUID)
             var testGuid = Guid.NewGuid();
             CrawlTest.Id = testGuid;
