@@ -138,7 +138,6 @@ namespace CrawlerWebApi.Services
                             if (frame == page.MainFrame)
                             {
                                 _currentPageUrl = frame.Url;
-                                Logger.Info($"Navigated to: {_currentPageUrl}");
                             }
                         };
 
