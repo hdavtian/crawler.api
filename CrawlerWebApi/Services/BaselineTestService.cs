@@ -211,6 +211,34 @@ namespace CrawlerWebApi.Services
                     CrawlTest.BaseUrl = CrawlerCommon.ExtractSchemeAndTLD(request.Url);
                 }
 
+                // Disable any unsupported v1 operations in case user requested via crawl test form
+                // We are doing this after login because that's where we determine site version
+                if (CrawlTest.SiteVersion is SiteVersion.V1)
+                {
+                    StringBuilder logMsg = new StringBuilder();
+                    if (CrawlContext.TakeAppScreenshots)
+                    {
+                        CrawlContext.TakeAppScreenshots = false;
+                        logMsg.AppendLine("V1 crawl currently does not support taking app screenshots, will skip this operation. ");
+                    }
+                    if (CrawlContext.CaptureAppHtml)
+                    {
+                        CrawlContext.CaptureAppHtml = false;
+                        logMsg.AppendLine("V1 crawl currently does not support capturing app html, will skip this operation. ");
+
+                    }
+                    if (CrawlContext.CaptureAppText)
+                    {
+                        logMsg.AppendLine("V1 crawl currently does not support capturing app text, will skip this operation. ");
+                        CrawlContext.CaptureAppText = false;
+                    }
+
+                    if (logMsg.Length != 0)
+                    {
+                        Logger.Info(logMsg.ToString());
+                    }
+                }
+
                 // Perform crawl
                 try
                 {
@@ -339,7 +367,7 @@ namespace CrawlerWebApi.Services
             var properties = model.GetType().GetProperties();
             var logMessage = new StringBuilder();
 
-            logMessage.AppendLine("Logging BaselineTestPostRequestModel properties:");
+            logMessage.AppendLine("Logging initially submitted 'BaselineTestPostRequestModel' properties:");
 
             foreach (var property in properties)
             {
