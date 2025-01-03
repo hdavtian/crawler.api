@@ -62,6 +62,16 @@ namespace CrawlerWebApi.Controllers
                 return BadRequest("Invalid request");
             }
 
+            if (request.RequiresLogin && (String.IsNullOrEmpty(request.Username) || String.IsNullOrEmpty(request.Password)))
+            {
+                return BadRequest("If login is required, you must submit a username and password");
+            }
+
+            if (!request.RequiresLogin && String.IsNullOrEmpty(request.Url))
+            {
+                return BadRequest("For portals that do not require a login you must submit a url");
+            }
+
             // Generate a unique TestId (GUID)
             var testGuid = Guid.NewGuid();
             CrawlTest.Id = testGuid;
@@ -112,8 +122,9 @@ namespace CrawlerWebApi.Controllers
                     }
                     catch (Exception ex)
                     {
-                        Logger.Error(ex, "<<Error>> An error occurred during the test execution.");
-                        SignalRLogger.SendLogMessage(testGuid.ToString(), "<<Error>> Unexpected error occurred.");
+                        string errMsg = "<<Error>> An error occurred during the test execution.";
+                        Logger.Error(ex, errMsg);
+                        SignalRLogger.SendLogMessage(testGuid.ToString(), errMsg);
                     }
                 }
             });
@@ -188,38 +199,6 @@ namespace CrawlerWebApi.Controllers
 
             // Return an empty result immediately after sending the testGuid
             return new EmptyResult();
-
-            /*
-
-            using (ScopeContext.PushProperty("TestType", "diff"))
-            using (ScopeContext.PushProperty("TestId", testGuid))
-            {
-                try
-                {
-                    // Return the GUID immediately to the frontend
-                    Response.StatusCode = (int)HttpStatusCode.OK;
-                    await Response.WriteAsync($"{{\"testGuid\":\"{testGuid}\"}}");
-
-                    var result = await DiffTestService.RunDiffTestAsync(request);
-
-                    if (result.Success)
-                    {
-                        SignalRLogger.SendLogMessage(testGuid.ToString(), "Diff operation completed successfully");
-                    }
-                    else
-                    {
-                        SignalRLogger.SendLogMessage(testGuid.ToString(), $"<<Error>> Diff test run failed: {result.ErrorMessage}");
-                    }
-
-                    return new EmptyResult();
-                }
-                catch (Exception ex)
-                {
-                    Logger.Error(ex, "<<Error>> An error occurred while running the diff test.");
-                    return StatusCode(StatusCodes.Status500InternalServerError, $"An error occurred: {ex.Message}");
-                }
-            }
-            */
         }
 
 
