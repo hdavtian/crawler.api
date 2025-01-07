@@ -22,5 +22,6 @@ namespace CrawlerWebApi.Models
         public bool SaveHar { get; set; }
         public PtierVersionModel PtierVersion { get; set; }
         public string ExtraUrls { get; set; }
+        public bool OnlyCrawlExtraUrls { get; set; }
     }
 }

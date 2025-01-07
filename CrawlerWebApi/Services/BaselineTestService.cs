@@ -77,6 +77,7 @@ namespace CrawlerWebApi.Services
                     string projectNameSubdomain = UrlUtil.GetSubdomainFromUrl(request.Url).ToLower();
                     CrawlTest.BaseSaveFolder = PathUtil.CreateSavePath("crawl-tests", projectNameSubdomain, request.WindowWidth, request.WindowHeight, CrawlTest.Id.ToString());
                     CrawlTest.ExtraUrls = request.ExtraUrls;
+                    CrawlTest.OnlyCrawlExtraUrls = request.OnlyCrawlExtraUrls;
                     CrawlTest.PtierVersion = request.PtierVersion;
                     Logger.Info("Test model set up successfully.");
                     Logger.Info($"BaseSaveFolder: {CrawlTest.BaseSaveFolder}");
