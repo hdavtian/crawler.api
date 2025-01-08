@@ -1,4 +1,5 @@
 ﻿using CrawlerWebApi.Interfaces;
+using IC.Test.Playwright.Crawler.Providers.Logger.Implementations;
 using CrawlerWebApi.Services;
 using IC.Test.Playwright.Crawler.Drivers;
 using IC.Test.Playwright.Crawler.Models;
@@ -6,6 +7,7 @@ using IC.Test.Playwright.Crawler.Utility;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Playwright;
 using System;
+using IC.Test.Playwright.Crawler.Providers.Logger;
 
 public static class Dependencies
 {
@@ -26,6 +28,8 @@ public static class Dependencies
         services.AddScoped<ITestService, TestService>();
         services.AddScoped<IBaselineTestService, BaselineTestService>();
         services.AddScoped<IDiffTestService, DiffTestService>();
+        services.AddScoped<ILoggingProvider, NLogProvider>(); // => default logger
+        // services.AddScoped<ILoggingProvider, SerilogProvider>(); => example to inject muiltiple dependencies for provider
         services.AddSingleton<WriterQueueService>();
 
         // Register PlaywrightContext and IPage

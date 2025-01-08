@@ -2,9 +2,8 @@
 using CrawlerWebApi.Models;
 using IC.Test.Playwright.Crawler.Drivers;
 using IC.Test.Playwright.Crawler.Models;
+using IC.Test.Playwright.Crawler.Providers.Logger;
 using IC.Test.Playwright.Crawler.Utility;
-using NLog;
-using Microsoft.Extensions.Configuration;
 using System.Text;
 
 namespace CrawlerWebApi.Services
@@ -16,9 +15,10 @@ namespace CrawlerWebApi.Services
         private readonly CrawlTest CrawlTest;
         private readonly CrawlDriver CrawlDriver;
         private readonly CrawlContext CrawlContext;
-        private readonly Logger Logger;
+        private readonly ILoggingProvider Logger;
         private readonly string ApiRootWinPath;
         private readonly string SiteArtifactsWinPath;
+        private readonly string SourceFilePath;
         private readonly WriterQueueService WriterQueueService;
 
         public BaselineTestService(
@@ -28,7 +28,8 @@ namespace CrawlerWebApi.Services
             CrawlDriver CrawlDriver,
             CrawlContext CrawlContext,
             IConfiguration AppConfiguration,
-            WriterQueueService WriterQueueService
+            WriterQueueService WriterQueueService,
+            ILoggingProvider loggingProvider
         )
         {
             this.PlaywrightContext = PlaywrightContext;
@@ -36,9 +37,10 @@ namespace CrawlerWebApi.Services
             this.CrawlTest = CrawlTest;
             this.CrawlDriver = CrawlDriver;
             this.CrawlContext = CrawlContext;
-            Logger = LogManager.GetCurrentClassLogger();
+            Logger = loggingProvider;
             ApiRootWinPath = AppConfiguration["ApiRootWinPath"];
             SiteArtifactsWinPath = AppConfiguration["SiteArtifactsWinPath"];
+            SourceFilePath = AppConfiguration["FileSettings:SourceFilePath"];
             this.WriterQueueService = WriterQueueService;
         }
 
@@ -258,7 +260,7 @@ namespace CrawlerWebApi.Services
                     await WriterQueueService.EnqueueAsync(async () =>
                     {
                         ReportWriter.UpdateJsonManifest(testsManifestFile, CrawlTest);
-                        ReportWriter.PruneTestsManifest(testsManifestFile);
+                        ReportWriter.PruneTestsManifest(testsManifestFile, Logger);
                     });
                 }
                 catch (Exception ex)
@@ -285,7 +287,7 @@ namespace CrawlerWebApi.Services
                 Logger.Info("Baseline test executed successfully.");
 
                 // move log to save path
-                FileUtil.MoveFileAsync(@"c:\Temp", CrawlTest.BaseSaveFolder,CrawlTest.LogFileName, Logger);
+                FileUtil.MoveFileAsync(SourceFilePath, CrawlTest.BaseSaveFolder,CrawlTest.LogFileName, Logger);
                 Logger.Info("<<TestEnded>>");
 
                 return new TestResult { Success = true };
