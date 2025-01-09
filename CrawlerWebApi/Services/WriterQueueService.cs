@@ -12,7 +12,7 @@ namespace CrawlerWebApi.Services
     {
         private readonly Channel<Func<Task>> Channel;
         private readonly IServiceScopeFactory _serviceScopeFactory;
-        private readonly ILoggingProvider Logger;
+        private ILoggingProvider Logger;
 
         public WriterQueueService(IServiceScopeFactory serviceScopeFactory, int capacity = 100)
         {
