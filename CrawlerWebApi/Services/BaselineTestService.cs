@@ -5,6 +5,7 @@ using IC.Test.Playwright.Crawler.Models;
 using IC.Test.Playwright.Crawler.Providers.Logger;
 using IC.Test.Playwright.Crawler.Utility;
 using System.Text;
+using AngleSharp.Dom;
 
 namespace CrawlerWebApi.Services
 {
@@ -15,6 +16,7 @@ namespace CrawlerWebApi.Services
         private readonly CrawlTest CrawlTest;
         private readonly CrawlDriver CrawlDriver;
         private readonly CrawlContext CrawlContext;
+        private readonly CrawlerCommon CrawlerCommon;
         private readonly ILoggingProvider Logger;
         private readonly string ApiRootWinPath;
         private readonly string SiteArtifactsWinPath;
@@ -27,6 +29,7 @@ namespace CrawlerWebApi.Services
             CrawlTest CrawlTest,
             CrawlDriver CrawlDriver,
             CrawlContext CrawlContext,
+            CrawlerCommon CrawlerCommon,
             IConfiguration AppConfiguration,
             WriterQueueService WriterQueueService,
             ILoggingProvider loggingProvider
@@ -37,6 +40,7 @@ namespace CrawlerWebApi.Services
             this.CrawlTest = CrawlTest;
             this.CrawlDriver = CrawlDriver;
             this.CrawlContext = CrawlContext;
+            this.CrawlerCommon = CrawlerCommon;
             Logger = loggingProvider;
             ApiRootWinPath = AppConfiguration["ApiRootWinPath"];
             SiteArtifactsWinPath = AppConfiguration["SiteArtifactsWinPath"];
@@ -111,6 +115,9 @@ namespace CrawlerWebApi.Services
                     await PlaywrightContext.InitializeAsync();
                     CrawlTest.Browser.Name = PlaywrightContext.BrowserName;
                     Logger.Info("Playwright context initialized successfully.");
+
+                    await CrawlerCommon.SetViewPortSizeAsync(CrawlTest.Browser.Width, CrawlTest.Browser.Height);
+                    Logger.Info($"Set browser viewport to {CrawlTest.Browser.Width}px by {CrawlTest.Browser.Height}px (width x height)");
                 }
                 catch (Exception ex)
                 {
@@ -120,7 +127,7 @@ namespace CrawlerWebApi.Services
                 }
 
                 // Setup network interception
-                List<NetworkData> _networkData = new List<NetworkData>();
+                CrawlTest.NetworkData = new List<NetworkData>();
                 if (request.CaptureNetworkTraffic)
                 {
                     var page = PlaywrightContext.Page;
@@ -133,14 +140,13 @@ namespace CrawlerWebApi.Services
                             if (frame == page.MainFrame)
                             {
                                 _currentPageUrl = frame.Url;
-                                Logger.Info($"Navigated to: {_currentPageUrl}");
                             }
                         };
 
                         page.Request += (_, request) =>
                         {
                             //Logger.Info($"Request intercepted: {request.Url}");
-                            _networkData.Add(new NetworkData
+                            CrawlTest.NetworkData.Add(new NetworkData
                             {
                                 Url = request.Url,
                                 Method = request.Method,
@@ -152,14 +158,30 @@ namespace CrawlerWebApi.Services
 
                         page.Response += async (_, response) =>
                         {
-                            //Logger.Info($"Response intercepted: {response.Url} with status {response.Status}");
-                            var matchingRequest = _networkData.FirstOrDefault(r => r.Url == response.Url);
+                            // Find the matching request in the custom NetworkData list
+                            var matchingRequest = CrawlTest.NetworkData.FirstOrDefault(r => r.Url == response.Url);
                             if (matchingRequest != null)
                             {
+                                // Update the response information
                                 matchingRequest.StatusCode = response.Status;
+
+                                // Capture response headers
+                                matchingRequest.ResponseHeaders = response.Headers;
+
+                                try
+                                {
+                                    // Capture the response body as bytes
+                                    matchingRequest.ResponseBody = await response.BodyAsync();
+
+                                    // Optionally capture the response body as a string (if it's text-based)
+                                    matchingRequest.ResponseBodyAsString = await response.TextAsync();
+                                }
+                                catch (Exception ex)
+                                {
+                                    //Logger.Warn($"Failed to capture response body for {response.Url}: {ex.Message}");
+                                }
                             }
                         };
-                        //Logger.Info("Network interception set up successfully.");
                     }
                     catch (Exception ex)
                     {
@@ -170,16 +192,54 @@ namespace CrawlerWebApi.Services
                 }
 
                 // Perform login
-                try
+                if (request.RequiresLogin)
                 {
-                    await LoginDriver.LoginToApplication(request.Url, request.Username, request.Password);
-                    Logger.Info("Login performed successfully.");
+                    try
+                    {
+                        await LoginDriver.LoginToApplication(request.Url, request.Username, request.Password);
+                        Logger.Info("Login performed successfully.");
+                    }
+                    catch (Exception ex)
+                    {
+                        string errMsg = "<<Error>> Failed during login process.";
+                        Logger.Error(ex, errMsg);
+                        Logger.SystemLog(LogLevel.Error, errMsg);
+                        Logger.Info("<<TestEnded>>");
+                        return new TestResult { Success = false, ErrorMessage = errMsg };
+                    }
+                } 
+                else
+                {
+                    await CrawlerCommon.NavigateToUrlAsync(request.Url);
+                    CrawlTest.BaseUrl = CrawlerCommon.ExtractSchemeAndTLD(request.Url);
                 }
-                catch (Exception ex)
+
+                // Disable any unsupported v1 operations in case user requested via crawl test form
+                // We are doing this after login because that's where we determine site version
+                if (CrawlTest.SiteVersion is SiteVersion.V1)
                 {
-                    Logger.Error(ex, "<<Error>> Failed during login process.");
-                    Logger.Info("<<TestEnded>>");
-                    return new TestResult { Success = false, ErrorMessage = "Failed during login process." };
+                    StringBuilder logMsg = new StringBuilder();
+                    if (CrawlContext.TakeAppScreenshots)
+                    {
+                        CrawlContext.TakeAppScreenshots = false;
+                        logMsg.AppendLine("V1 crawl currently does not support taking app screenshots, will skip this operation. ");
+                    }
+                    if (CrawlContext.CaptureAppHtml)
+                    {
+                        CrawlContext.CaptureAppHtml = false;
+                        logMsg.AppendLine("V1 crawl currently does not support capturing app html, will skip this operation. ");
+
+                    }
+                    if (CrawlContext.CaptureAppText)
+                    {
+                        logMsg.AppendLine("V1 crawl currently does not support capturing app text, will skip this operation. ");
+                        CrawlContext.CaptureAppText = false;
+                    }
+
+                    if (logMsg.Length != 0)
+                    {
+                        Logger.Info(logMsg.ToString());
+                    }
                 }
 
                 // Perform crawl
@@ -190,9 +250,10 @@ namespace CrawlerWebApi.Services
                 }
                 catch (Exception ex)
                 {
-                    Logger.Error(ex, "<<Error>> Failed during crawl process.");
+                    string errMsg = "<<Error>> " + ex.Message;
+                    Logger.Error(ex, errMsg);
                     Logger.Info("<<TestEnded>>");
-                    return new TestResult { Success = false, ErrorMessage = "Failed during crawl process." };
+                    return new TestResult { Success = false, ErrorMessage = errMsg };
                 }
 
                 // Stop timer and assign duration
@@ -213,11 +274,15 @@ namespace CrawlerWebApi.Services
                 // Save reports
                 try
                 {
+                    // For now lets not save the network traffic because logs get too large
+                    // I still monitor it for login errors at beginning so the front end baseline launch form option to 'Capture Network Traffic' needs to be checked
+                    /*
                     if (request.CaptureNetworkTraffic)
                     {
-                        ReportWriter.SaveModelAsJsonFile(_networkData, CrawlTest.BaseSaveFolder, "networkData");
+                        ReportWriter.SaveModelAsJsonFile(CrawlTest.NetworkData, CrawlTest.BaseSaveFolder, "networkData");
                         Logger.Info("Network log reports saved successfully.");
                     }
+                    */
 
                     // Add totals to CrawlTest to be included in manifest and test-info.json files
                     CrawlTest.UrlTotal = CrawlContext.VisitedUrls.Count;
@@ -305,12 +370,12 @@ namespace CrawlerWebApi.Services
             var properties = model.GetType().GetProperties();
             var logMessage = new StringBuilder();
 
-            logMessage.AppendLine("Logging BaselineTestPostRequestModel properties:");
+            logMessage.AppendLine("Logging initially submitted 'BaselineTestPostRequestModel' properties:");
 
             foreach (var property in properties)
             {
                 var value = property.Name.Equals("Password", StringComparison.OrdinalIgnoreCase)
-                    ? "******" // Mask the password value
+                    ? "" // Mask the password value
                     : property.GetValue(model) ?? "null"; // Log the actual value or "null" if not set
 
                 logMessage.AppendLine($"{property.Name}: {value}");
