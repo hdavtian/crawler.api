@@ -13,7 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Playwright.Crawler\IC.Test.Playwright.Crawler\IC.Test.Playwright.Crawler\IC.Test.Playwright.Crawler.csproj" />
+    <ProjectReference Include="..\..\ic.test.relativetesting.engine\IC.Test.Playwright.Crawler\IC.Test.Playwright.Crawler.csproj" />
   </ItemGroup>
 
   <ItemGroup>
