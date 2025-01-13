@@ -3,11 +3,11 @@ using CrawlerWebApi.Models;
 using IC.Test.Playwright.Crawler.Drivers;
 using IC.Test.Playwright.Crawler.Models;
 using IC.Test.Playwright.Crawler.Utility;
-using NLog;
 using System.Text;
 using Microsoft.Extensions.Configuration;
 using DiffPlex;
 using System;
+using IC.Test.Playwright.Crawler.Providers.Logger;
 
 namespace CrawlerWebApi.Services
 {
@@ -18,7 +18,7 @@ namespace CrawlerWebApi.Services
         private readonly DiffDriver DiffDriver;
         private readonly DiffContext DiffContext;
         private readonly CrawlArtifactManager CrawlArtifactManager;
-        private readonly Logger Logger;
+        private readonly ILoggingProvider Logger;
         private readonly string SiteArtifactsWinPath;
         private readonly WriterQueueService WriterQueueService;
 
@@ -28,14 +28,15 @@ namespace CrawlerWebApi.Services
             DiffContext DiffContext,
             CrawlArtifactManager CrawlArtifactManager,
             IConfiguration AppConfiguration,
-            WriterQueueService WriterQueueService
+            WriterQueueService WriterQueueService,
+            ILoggingProvider loggingProvider
             )
         {
             this.DiffTest = DiffTest;
             this.DiffDriver = DiffDriver;
             this.DiffContext = DiffContext;
             this.CrawlArtifactManager = CrawlArtifactManager;
-            Logger = LogManager.GetCurrentClassLogger();
+            Logger = loggingProvider;
             SiteArtifactsWinPath = AppConfiguration["SiteArtifactsWinPath"];
             this.WriterQueueService = WriterQueueService;
         }

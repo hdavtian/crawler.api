@@ -1,5 +1,5 @@
 using CrawlerWebApi.Services;
-using CrawlerWebApi.signalR;
+using IC.Test.Playwright.Crawler.SignalR;
 using Microsoft.AspNetCore.SignalR;
 using NLog;
 using NLog.Web;
@@ -7,6 +7,8 @@ using System.Reflection.Metadata;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Serialization;
+using IC.Test.Playwright.Crawler.Providers.Logger;
+using Microsoft.Extensions.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -53,6 +55,9 @@ builder.Services.AddSignalR(options =>
 // DI (Dependency Injection)
 builder.Services.AddProjectDependencies();
 
+// Load NLog configuration
+NLog.LogManager.Setup().LoadConfigurationFromFile("nlog.config");
+
 // Get url from appsettings
 var allowedOrigin = builder.Configuration.GetValue<string>("CorsSettings:AllowedOrigin");
 
@@ -70,8 +75,8 @@ builder.Services.AddCors(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Load NLog configuration
-NLog.LogManager.Setup().LoadConfigurationFromFile("nlog.config");
+
+
 
 // -
 // --
@@ -106,4 +111,17 @@ app.MapHub<LoggingHub>("/loggingHub");
 
 app.MapControllers();
 
+
+
+
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    var loggingProvider = services.GetRequiredService<ILoggingProvider>();
+
+    // Use loggingProvider here
+    loggingProvider.SystemLog(Microsoft.Extensions.Logging.LogLevel.Information,"Application started.");
+}
+
 app.Run();
+
