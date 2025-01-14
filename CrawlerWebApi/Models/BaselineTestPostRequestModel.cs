@@ -18,7 +18,7 @@ namespace CrawlerWebApi.Models
         public bool CaptureAppHtml { get; set; }
         public bool CaptureAppText { get; set; }
         public bool GenerateAxeReports {  get; set; }
-        public bool CaptureNetworkTraffic {  get; set; }
+        public bool SaveNetworkTraffic {  get; set; }
         public bool SaveHar { get; set; }
         public PtierVersionModel PtierVersion { get; set; }
         public string ExtraUrls { get; set; }

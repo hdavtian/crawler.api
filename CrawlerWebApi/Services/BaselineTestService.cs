@@ -65,7 +65,7 @@ namespace CrawlerWebApi.Services
                 CrawlContext.CaptureAppHtml = request.CaptureAppHtml;
                 CrawlContext.CaptureAppText = request.CaptureAppText;
                 CrawlContext.GenerateAxeReports = request.GenerateAxeReports;
-                CrawlContext.CaptureNetworkTraffic = request.CaptureNetworkTraffic;
+                CrawlContext.SaveNetworkTraffic = request.SaveNetworkTraffic;
 
                 string _harFileName = $"{CrawlTest.Id}.har";
 
@@ -133,68 +133,65 @@ namespace CrawlerWebApi.Services
 
                 // Setup network interception
                 CrawlTest.NetworkData = new List<NetworkData>();
-                if (request.CaptureNetworkTraffic)
+                var page = PlaywrightContext.Page;
+                string _currentPageUrl = page.Url;
+
+                try
                 {
-                    var page = PlaywrightContext.Page;
-                    string _currentPageUrl = page.Url;
-
-                    try
+                    page.FrameNavigated += (_, frame) =>
                     {
-                        page.FrameNavigated += (_, frame) =>
+                        if (frame == page.MainFrame)
                         {
-                            if (frame == page.MainFrame)
-                            {
-                                _currentPageUrl = frame.Url;
-                            }
-                        };
+                            _currentPageUrl = frame.Url;
+                        }
+                    };
 
-                        page.Request += (_, request) =>
-                        {
-                            //Logger.Info($"Request intercepted: {request.Url}");
-                            CrawlTest.NetworkData.Add(new NetworkData
-                            {
-                                Url = request.Url,
-                                Method = request.Method,
-                                Headers = request.Headers,
-                                PostData = request.PostData,
-                                PageUrl = _currentPageUrl
-                            });
-                        };
-
-                        page.Response += async (_, response) =>
-                        {
-                            // Find the matching request in the custom NetworkData list
-                            var matchingRequest = CrawlTest.NetworkData.FirstOrDefault(r => r.Url == response.Url);
-                            if (matchingRequest != null)
-                            {
-                                // Update the response information
-                                matchingRequest.StatusCode = response.Status;
-
-                                // Capture response headers
-                                matchingRequest.ResponseHeaders = response.Headers;
-
-                                try
-                                {
-                                    // Capture the response body as bytes
-                                    matchingRequest.ResponseBody = await response.BodyAsync();
-
-                                    // Optionally capture the response body as a string (if it's text-based)
-                                    matchingRequest.ResponseBodyAsString = await response.TextAsync();
-                                }
-                                catch (Exception ex)
-                                {
-                                    //Logger.Warn($"Failed to capture response body for {response.Url}: {ex.Message}");
-                                }
-                            }
-                        };
-                    }
-                    catch (Exception ex)
+                    page.Request += (_, request) =>
                     {
-                        Logger.Error(ex, "<<Error>> Failed to set up network interception.");
-                        Logger.Info("<<TestEnded>>");
-                        Logger.RaiseEvent(TaffieEventType.CrawlTestEnded, "Crawl test has ended");
-                        return new TestResult { Success = false, ErrorMessage = "Failed to set up network interception." };
-                    }
+                        //Logger.Info($"Request intercepted: {request.Url}");
+                        CrawlTest.NetworkData.Add(new NetworkData
+                        {
+                            Url = request.Url,
+                            Method = request.Method,
+                            Headers = request.Headers,
+                            PostData = request.PostData,
+                            PageUrl = _currentPageUrl
+                        });
+                    };
+
+                    page.Response += async (_, response) =>
+                    {
+                        // Find the matching request in the custom NetworkData list
+                        var matchingRequest = CrawlTest.NetworkData.FirstOrDefault(r => r.Url == response.Url);
+                        if (matchingRequest != null)
+                        {
+                            // Update the response information
+                            matchingRequest.StatusCode = response.Status;
+
+                            // Capture response headers
+                            matchingRequest.ResponseHeaders = response.Headers;
+
+                            try
+                            {
+                                // Capture the response body as bytes
+                                matchingRequest.ResponseBody = await response.BodyAsync();
+
+                                // Optionally capture the response body as a string (if it's text-based)
+                                matchingRequest.ResponseBodyAsString = await response.TextAsync();
+                            }
+                            catch (Exception ex)
+                            {
+                                //Logger.Warn($"Failed to capture response body for {response.Url}: {ex.Message}");
+                            }
+                        }
+                    };
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error(ex, "<<Error>> Failed to set up network interception.");
+                    Logger.Info("<<TestEnded>>");
+                    Logger.RaiseEvent(TaffieEventType.CrawlTestEnded, "Crawl test has ended");
+                    return new TestResult { Success = false, ErrorMessage = "Failed to set up network interception." };
                 }
 
                 // Perform login
@@ -280,18 +277,13 @@ namespace CrawlerWebApi.Services
                     return new TestResult { Success = false, ErrorMessage = "Failed to stop timer and assign duration." };
                 }
 
-                // Save reports
                 try
                 {
-                    // For now lets not save the network traffic because logs get too large
-                    // I still monitor it for login errors at beginning so the front end baseline launch form option to 'Capture Network Traffic' needs to be checked
-                    /*
-                    if (request.CaptureNetworkTraffic)
+                    if (request.SaveNetworkTraffic)
                     {
                         ReportWriter.SaveModelAsJsonFile(CrawlTest.NetworkData, CrawlTest.BaseSaveFolder, "networkData");
                         Logger.Info("Network log reports saved successfully.");
                     }
-                    */
 
                     // Add totals to CrawlTest to be included in manifest and test-info.json files
                     CrawlTest.UrlTotal = CrawlContext.VisitedUrls.Count;
