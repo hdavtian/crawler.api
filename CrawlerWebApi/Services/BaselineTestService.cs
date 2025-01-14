@@ -6,6 +6,7 @@ using IC.Test.Playwright.Crawler.Providers.Logger;
 using IC.Test.Playwright.Crawler.Utility;
 using System.Text;
 using AngleSharp.Dom;
+using IC.Test.Playwright.Crawler.Providers.Logger.Enums;
 
 namespace CrawlerWebApi.Services
 {
@@ -53,6 +54,7 @@ namespace CrawlerWebApi.Services
             try
             {
                 Logger.Info("<<TestStarted>>");
+                Logger.RaiseEvent(TaffieEventType.CrawlTestStarted, "The crawl test has started");
                 Logger.Info("TestId: " + CrawlTest.Id);
 
                 LogBaselineTestPostRequestModel(request);
@@ -88,6 +90,7 @@ namespace CrawlerWebApi.Services
                 {
                     Logger.Error(ex, "<<Error>> Failed to set up test model.");
                     Logger.Info("<<TestEnded>>");
+                    Logger.RaiseEvent(TaffieEventType.CrawlTestEnded, "Crawl test has ended");
                     return new TestResult { Success = false, ErrorMessage = "Failed to set up test model." };
                 }
 
@@ -124,6 +127,7 @@ namespace CrawlerWebApi.Services
                 {
                     Logger.Error(ex, "<<Error>> Failed to initialize Playwright context.");
                     Logger.Info("<<TestEnded>>");
+                    Logger.RaiseEvent(TaffieEventType.CrawlTestEnded, "Crawl test has ended");
                     return new TestResult { Success = false, ErrorMessage = "Failed to initialize Playwright context." };
                 }
 
@@ -188,6 +192,7 @@ namespace CrawlerWebApi.Services
                     {
                         Logger.Error(ex, "<<Error>> Failed to set up network interception.");
                         Logger.Info("<<TestEnded>>");
+                        Logger.RaiseEvent(TaffieEventType.CrawlTestEnded, "Crawl test has ended");
                         return new TestResult { Success = false, ErrorMessage = "Failed to set up network interception." };
                     }
                 }
@@ -206,6 +211,7 @@ namespace CrawlerWebApi.Services
                         Logger.Error(ex, errMsg);
                         Logger.SystemLog(LogLevel.Error, errMsg);
                         Logger.Info("<<TestEnded>>");
+                        Logger.RaiseEvent(TaffieEventType.CrawlTestEnded, "Crawl test has ended");
                         return new TestResult { Success = false, ErrorMessage = errMsg };
                     }
                 } 
@@ -254,6 +260,7 @@ namespace CrawlerWebApi.Services
                     string errMsg = "<<Error>> " + ex.Message;
                     Logger.Error(ex, errMsg);
                     Logger.Info("<<TestEnded>>");
+                    Logger.RaiseEvent(TaffieEventType.CrawlTestEnded, "Crawl test has ended");
                     return new TestResult { Success = false, ErrorMessage = errMsg };
                 }
 
@@ -269,6 +276,7 @@ namespace CrawlerWebApi.Services
                 {
                     Logger.Error(ex, "<<Error>> Failed to stop timer and assign duration.");
                     Logger.Info("<<TestEnded>>");
+                    Logger.RaiseEvent(TaffieEventType.CrawlTestEnded, "Crawl test has ended");
                     return new TestResult { Success = false, ErrorMessage = "Failed to stop timer and assign duration." };
                 }
 
@@ -333,6 +341,7 @@ namespace CrawlerWebApi.Services
                 {
                     Logger.Error(ex, "<<Error>> Failed to save reports.");
                     Logger.Info("<<TestEnded>>");
+                    Logger.RaiseEvent(TaffieEventType.CrawlTestEnded, "Crawl test has ended");
                     return new TestResult { Success = false, ErrorMessage = "Failed to save reports." };
                 }
 
@@ -346,6 +355,7 @@ namespace CrawlerWebApi.Services
                 {
                     Logger.Error(ex, "<<Error>> Failed to dispose Playwright context.");
                     Logger.Info("<<TestEnded>>");
+                    Logger.RaiseEvent(TaffieEventType.CrawlTestEnded, "Crawl test has ended");
                     return new TestResult { Success = false, ErrorMessage = "Failed to dispose Playwright context." };
                 }
 
@@ -355,12 +365,14 @@ namespace CrawlerWebApi.Services
                 // move log to save path
                 FileUtil.MoveFileAsync(SourceFilePath, CrawlTest.BaseSaveFolder,CrawlTest.LogFileName, Logger);
                 Logger.Info("<<TestEnded>>");
+                Logger.RaiseEvent(TaffieEventType.CrawlTestEnded, "Crawl test has ended");
 
                 return new TestResult { Success = true };
             }
             catch (Exception ex)
             {
                 Logger.Info("<<TestError>>, <<TestEnded>>");
+                Logger.RaiseEvent(TaffieEventType.CrawlTestEnded, "Crawl test has ended");
                 Logger.Error(ex, "<<Error>> Unexpected error during baseline test execution.");
                 return new TestResult { Success = false, ErrorMessage = ex.Message };
             }

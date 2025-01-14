@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using DiffPlex;
 using System;
 using IC.Test.Playwright.Crawler.Providers.Logger;
+using IC.Test.Playwright.Crawler.Providers.Logger.Enums;
 
 namespace CrawlerWebApi.Services
 {
@@ -45,6 +46,7 @@ namespace CrawlerWebApi.Services
             try
             {
                 Logger.Info("<<TestStarted>>");
+                Logger.RaiseEvent(TaffieEventType.DiffTestStarted, "Diff test has  started");
 
                 TimerUtil.StartTimer(DiffTest.Timers, "DiffDuration");
 
@@ -106,11 +108,13 @@ namespace CrawlerWebApi.Services
 
                 // ***************************************
                 Logger.Info("<<TestEnded>>");
+                Logger.RaiseEvent(TaffieEventType.DiffTestEnded, "Diff test has ended");
                 return new TestResult { Success = true, ErrorMessage = "Successfully completed diff test" };
 
             } catch (Exception ex)
             {
                 Logger.Info("<<TestError>>, <<TestEnded>>");
+                Logger.RaiseEvent(TaffieEventType.DiffTestEnded, "Diff test has ended");
                 Logger.Error(ex, "<<Error>> Unexpected error during diff test execution.");
                 return new TestResult { Success = false, ErrorMessage = ex.Message };
             }
