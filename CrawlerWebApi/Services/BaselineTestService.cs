@@ -7,7 +7,7 @@ using IC.Test.Playwright.Crawler.Utility;
 using System.Text;
 using AngleSharp.Dom;
 using IC.Test.Playwright.Crawler.Providers.Logger.Enums;
-using IC.Test.Playwright.Crawler.Enum;
+using IC.Test.Playwright.Crawler.Enums;
 using AngleSharp.Io;
 
 namespace CrawlerWebApi.Services

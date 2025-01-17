@@ -1,4 +1,4 @@
-﻿using IC.Test.Playwright.Crawler.Enum;
+﻿using IC.Test.Playwright.Crawler.Enums;
 using IC.Test.Playwright.Crawler.Models;
 
 namespace CrawlerWebApi.Models

@@ -13,7 +13,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Microsoft.Playwright;
 using System.Net;
-using IC.Test.Playwright.Crawler.Enum;
+using IC.Test.Playwright.Crawler.Enums;
 
 namespace CrawlerWebApi.Controllers
 {
