@@ -134,11 +134,10 @@ namespace CrawlerWebApi.Controllers
                 }
                 finally
                 {
-                    // if CrawlType.Scratch then delete save dir and remove test from manifest
+                    // if CrawlType.Scratch or LoginOnly then delete save dir and remove test from manifest
                     if (CrawlTest.CrawlType.Equals(CrawlType.Scratch) || CrawlTest.CrawlType.Equals(CrawlType.LoginOnly))
                     {
-                        Logger.Info("Will now delete all captured artifacts...");
-                        //await FileUtil.DeleteFilesInDirectoryAsync();
+                        Logger.Info("Will now delete all captured artifacts ...");
                         FileUtil.DeleteDirectory(CrawlTest.BaseSaveFolder);
                         Logger.Info($"Removed '{CrawlTest.BaseSaveFolder}' and all of its contents");
                         string testsManifestFile = Path.Combine(SiteArtifactsWinPath, "tests.json");
