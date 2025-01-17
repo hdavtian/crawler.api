@@ -1,4 +1,6 @@
-﻿using NLog;
+﻿using IC.Test.Playwright.Crawler.Providers.Logger;
+using Microsoft.Extensions.DependencyInjection;
+using NLog;
 using System;
 using System.Threading;
 using System.Threading.Channels;
@@ -9,17 +11,23 @@ namespace CrawlerWebApi.Services
     public class WriterQueueService
     {
         private readonly Channel<Func<Task>> Channel;
-        private readonly Logger Logger;
+        private readonly IServiceScopeFactory _serviceScopeFactory;
+        private ILoggingProvider Logger;
 
-        public WriterQueueService(int capacity = 100)
+        public WriterQueueService(IServiceScopeFactory serviceScopeFactory, int capacity = 100)
         {
-            Logger = Logger = NLog.LogManager.GetCurrentClassLogger();
+            _serviceScopeFactory = serviceScopeFactory;
 
-            // Bounded channel with a capacity to prevent overwhelming the system
-            Channel = System.Threading.Channels.Channel.CreateBounded<Func<Task>>(capacity);
+            using (var scope = _serviceScopeFactory.CreateScope())
+            {
+                Logger = scope.ServiceProvider.GetRequiredService<ILoggingProvider>();
 
-            // Start the background task to consume from the channel
-            _ = Task.Run(ProcessQueueAsync);
+                // Bounded channel with a capacity to prevent overwhelming the system
+                Channel = System.Threading.Channels.Channel.CreateBounded<Func<Task>>(capacity);
+
+                // Start the background task to consume from the channel
+                _ = Task.Run(ProcessQueueAsync);
+            }
         }
 
         // Enqueue a new task
@@ -31,20 +39,25 @@ namespace CrawlerWebApi.Services
         // Background processing of queued tasks
         private async Task ProcessQueueAsync()
         {
-            // Continuously read and execute tasks from the channel
-            while (await Channel.Reader.WaitToReadAsync())
+            using (var scope = _serviceScopeFactory.CreateScope())
             {
-                while (Channel.Reader.TryRead(out var task))
+                Logger = scope.ServiceProvider.GetRequiredService<ILoggingProvider>();
+
+                // Continuously read and execute tasks from the channel
+                while (await Channel.Reader.WaitToReadAsync())
                 {
-                    try
+                    while (Channel.Reader.TryRead(out var task))
                     {
-                        // Execute the task
-                        await task();
-                    }
-                    catch (Exception ex)
-                    {
-                        // Log the error using NLog
-                        Logger.Error(ex, "Error processing task in the queue");
+                        try
+                        {
+                            // Execute the task
+                            await task();
+                        }
+                        catch (Exception ex)
+                        {
+                            // Log the error using NLog
+                            Logger.Error(ex, "Error processing task in the queue");
+                        }
                     }
                 }
             }

@@ -2,17 +2,18 @@
 using CrawlerWebApi.Interfaces;
 using CrawlerWebApi.Models;
 using CrawlerWebApi.Services;
-using CrawlerWebApi.signalR;
+using IC.Test.Playwright.Crawler.SignalR;
 using IC.Test.Playwright.Crawler.Drivers;
 using IC.Test.Playwright.Crawler.Models;
+using IC.Test.Playwright.Crawler.Providers.Logger;
 using IC.Test.Playwright.Crawler.Utility;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Microsoft.Playwright;
-using NLog;
 using System.Net;
+using IC.Test.Playwright.Crawler.Enums;
 
 namespace CrawlerWebApi.Controllers
 {
@@ -25,21 +26,25 @@ namespace CrawlerWebApi.Controllers
         private readonly DiffTest DiffTest;
         private readonly IDiffTestService DiffTestService;
         private readonly ITestService TestService;
-        private readonly Logger Logger;
+        private readonly ILoggingProvider Logger;
+        private readonly string SiteArtifactsWinPath;
 
         public TestController(
             ITestService testService,
-            IBaselineTestService baselineTestService, 
+            IBaselineTestService baselineTestService,
             IDiffTestService diffTestService,
             CrawlTest testModel,
-            DiffTest diffTest)
+            DiffTest diffTest,
+            IConfiguration AppConfiguration,
+            ILoggingProvider logger)
         {
             BaselineTestService = baselineTestService;
             TestService = testService;
             DiffTestService = diffTestService;
-            Logger = LogManager.GetCurrentClassLogger();
+            Logger = logger;
             CrawlTest = testModel;
             DiffTest = diffTest;
+            SiteArtifactsWinPath = AppConfiguration["SiteArtifactsWinPath"];
         }
 
         //
@@ -75,6 +80,7 @@ namespace CrawlerWebApi.Controllers
             // Generate a unique TestId (GUID)
             var testGuid = Guid.NewGuid();
             CrawlTest.Id = testGuid;
+            CrawlTest.CrawlType = request.CrawlType;
             CrawlTest.LogFileName = $"crawl-{testGuid}.log";
 
             // Immediately send the testGuid to the frontend
@@ -84,47 +90,58 @@ namespace CrawlerWebApi.Controllers
             // Start readiness check and test execution in the background
             _ = Task.Run(async () =>
             {
-                using (ScopeContext.PushProperty("TestType", "crawl"))
-                using (ScopeContext.PushProperty("TestId", testGuid))
+                Logger.SetParams(testGuid.ToString(), "crawl");
+                try
                 {
-                    try
+                    Logger.Info($"Crawl test {testGuid} is starting...");
+                    Logger.SystemLog(LogLevel.Information, $"Crawl test {testGuid} is starting...");
+
+                    // Wait for frontend readiness
+                    int maxRetries = 10;
+                    int delayMilliseconds = 500; // 500ms between retries
+                    while (!LoggingHub.IsGroupReady(testGuid.ToString()) && maxRetries > 0)
                     {
-                        Logger.Info($"Crawl test {testGuid} is starting...");
-
-                        // Wait for frontend readiness
-                        int maxRetries = 10;
-                        int delayMilliseconds = 500; // 500ms between retries
-                        while (!LoggingHub.IsGroupReady(testGuid.ToString()) && maxRetries > 0)
-                        {
-                            await Task.Delay(delayMilliseconds);
-                            maxRetries--;
-                        }
-
-                        if (!LoggingHub.IsGroupReady(testGuid.ToString()))
-                        {
-                            Logger.Warn($"Test {testGuid} frontend did not signal readiness within the timeout.");
-                            return; // End the task early if readiness is not signaled
-                        }
-
-                        Logger.Info("Frontend signaled readiness. Proceeding with the test...");
-
-                        // Continue with the actual test execution
-                        var result = await BaselineTestService.RunBaselineTestAsync(request);
-
-                        if (result.Success)
-                        {
-                            SignalRLogger.SendLogMessage(testGuid.ToString(), "Crawl operation completed successfully");
-                        }
-                        else
-                        {
-                            SignalRLogger.SendLogMessage(testGuid.ToString(), $"<<Error>> Test run failed: {result.ErrorMessage}");
-                        }
+                        await Task.Delay(delayMilliseconds);
+                        maxRetries--;
                     }
-                    catch (Exception ex)
+
+                    if (!LoggingHub.IsGroupReady(testGuid.ToString()))
                     {
-                        string errMsg = "<<Error>> An error occurred during the test execution.";
-                        Logger.Error(ex, errMsg);
-                        SignalRLogger.SendLogMessage(testGuid.ToString(), errMsg);
+                        Logger.Warn($"Test {testGuid} frontend did not signal readiness within the timeout.");
+                        return; // End the task early if readiness is not signaled
+                    }
+
+                    Logger.Info("Frontend signaled readiness. Proceeding with the test...");
+
+                    // Continue with the actual test execution
+                    var result = await BaselineTestService.RunBaselineTestAsync(request);
+
+                    if (result.Success)
+                    {
+                        Logger.Info("Crawl operation completed successfully");
+                        Logger.SystemLog(LogLevel.Information, $"Crawl test {testGuid} is completed without any errors");
+                    }
+                    else
+                    {
+                        Logger.Error($"<<Error>> Test run failed: {result.ErrorMessage}");
+                        Logger.SystemLog(LogLevel.Error, $"Crawl test {testGuid} is failed: {result.ErrorMessage}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    string errMsg = "<<Error>> An error occurred during the test execution.";
+                    Logger.Error(ex, errMsg);
+                }
+                finally
+                {
+                    // if CrawlType.Scratch or LoginOnly then delete save dir and remove test from manifest
+                    if (CrawlTest.CrawlType.Equals(CrawlType.Scratch) || CrawlTest.CrawlType.Equals(CrawlType.LoginOnly))
+                    {
+                        Logger.Info("Will now delete all captured artifacts ...");
+                        FileUtil.DeleteDirectory(CrawlTest.BaseSaveFolder);
+                        Logger.Info($"Removed '{CrawlTest.BaseSaveFolder}' and all of its contents");
+                        string testsManifestFile = Path.Combine(SiteArtifactsWinPath, "tests.json");
+                        ReportWriter.PruneTestsManifest(testsManifestFile, Logger);
                     }
                 }
             });
@@ -153,48 +170,51 @@ namespace CrawlerWebApi.Controllers
             // Start readiness check and test execution in the background
             _ = Task.Run(async () =>
             {
-                using (ScopeContext.PushProperty("TestType", "diff"))
-                using (ScopeContext.PushProperty("TestId", testGuid))
+                Logger.SetParams(testGuid.ToString(), "diff");
+                //using (ScopeContext.PushProperty("TestType", "diff"))
+                //using (ScopeContext.PushProperty("TestId", testGuid))
+                //{
+                try
                 {
-                    try
+                    Logger.Info($"Diff test {testGuid} is starting...");
+                    Logger.SystemLog(LogLevel.Information, $"Diff test {testGuid} is starting...");
+
+                    // Wait for frontend readiness
+                    int maxRetries = 10;
+                    int delayMilliseconds = 500; // 500ms between retries
+                    while (!LoggingHub.IsGroupReady(testGuid.ToString()) && maxRetries > 0)
                     {
-                        Logger.Info($"Diff test {testGuid} is starting...");
-
-                        // Wait for frontend readiness
-                        int maxRetries = 10;
-                        int delayMilliseconds = 500; // 500ms between retries
-                        while (!LoggingHub.IsGroupReady(testGuid.ToString()) && maxRetries > 0)
-                        {
-                            await Task.Delay(delayMilliseconds);
-                            maxRetries--;
-                        }
-
-                        if (!LoggingHub.IsGroupReady(testGuid.ToString()))
-                        {
-                            Logger.Warn($"Test {testGuid} frontend did not signal readiness within the timeout.");
-                            return; // End the task early if readiness is not signaled
-                        }
-
-                        Logger.Info("Frontend signaled readiness. Proceeding with the test...");
-
-                        // Continue with the actual test execution
-                        var result = await DiffTestService.RunDiffTestAsync(request);
-
-                        if (result.Success)
-                        {
-                            SignalRLogger.SendLogMessage(testGuid.ToString(), "Diff operation completed successfully");
-                        }
-                        else
-                        {
-                            SignalRLogger.SendLogMessage(testGuid.ToString(), $"<<Error>> Diff test run failed: {result.ErrorMessage}");
-                        }
+                        await Task.Delay(delayMilliseconds);
+                        maxRetries--;
                     }
-                    catch (Exception ex)
+
+                    if (!LoggingHub.IsGroupReady(testGuid.ToString()))
                     {
-                        Logger.Error(ex, "<<Error>> An error occurred during the diff test execution.");
-                        SignalRLogger.SendLogMessage(testGuid.ToString(), "<<Error>> Unexpected error occurred.");
+                        Logger.Warn($"Test {testGuid} frontend did not signal readiness within the timeout.");
+                        return; // End the task early if readiness is not signaled
+                    }
+
+                    Logger.Info("Frontend signaled readiness. Proceeding with the test...");
+
+                    // Continue with the actual test execution
+                    var result = await DiffTestService.RunDiffTestAsync(request);
+
+                    if (result.Success)
+                    {
+                        Logger.Info("Diff operation completed successfully");
+                        Logger.SystemLog(LogLevel.Information, $"Diff test {testGuid} is completed without any errors");
+                    }
+                    else
+                    {
+                        Logger.Error($"<<Error>> Diff test run failed: {result.ErrorMessage}");
+                        Logger.SystemLog(LogLevel.Error, $"Diff test {testGuid} is failed: {result.ErrorMessage}");
                     }
                 }
+                catch (Exception ex)
+                {
+                    Logger.Error(ex, "<<Error>> An error occurred during the diff test execution.");
+                }
+                //}
             });
 
             // Return an empty result immediately after sending the testGuid

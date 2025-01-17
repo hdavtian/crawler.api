@@ -1,9 +1,11 @@
-﻿using IC.Test.Playwright.Crawler.Models;
+﻿using IC.Test.Playwright.Crawler.Enums;
+using IC.Test.Playwright.Crawler.Models;
 
 namespace CrawlerWebApi.Models
 {
     public class BaselineTestPostRequestModel
     {
+        public CrawlType CrawlType { get; set; }
         public bool RequiresLogin { get; set; }
         public string Url { get; set; }
         public string Username { get; set; }
@@ -18,9 +20,10 @@ namespace CrawlerWebApi.Models
         public bool CaptureAppHtml { get; set; }
         public bool CaptureAppText { get; set; }
         public bool GenerateAxeReports {  get; set; }
-        public bool CaptureNetworkTraffic {  get; set; }
+        public bool SaveNetworkTraffic {  get; set; }
         public bool SaveHar { get; set; }
         public PtierVersionModel PtierVersion { get; set; }
         public string ExtraUrls { get; set; }
+        public bool OnlyCrawlExtraUrls { get; set; }
     }
 }

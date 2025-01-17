@@ -3,11 +3,12 @@ using CrawlerWebApi.Models;
 using IC.Test.Playwright.Crawler.Drivers;
 using IC.Test.Playwright.Crawler.Models;
 using IC.Test.Playwright.Crawler.Utility;
-using NLog;
 using System.Text;
 using Microsoft.Extensions.Configuration;
 using DiffPlex;
 using System;
+using IC.Test.Playwright.Crawler.Providers.Logger;
+using IC.Test.Playwright.Crawler.Providers.Logger.Enums;
 
 namespace CrawlerWebApi.Services
 {
@@ -18,7 +19,7 @@ namespace CrawlerWebApi.Services
         private readonly DiffDriver DiffDriver;
         private readonly DiffContext DiffContext;
         private readonly CrawlArtifactManager CrawlArtifactManager;
-        private readonly Logger Logger;
+        private readonly ILoggingProvider Logger;
         private readonly string SiteArtifactsWinPath;
         private readonly WriterQueueService WriterQueueService;
 
@@ -28,14 +29,15 @@ namespace CrawlerWebApi.Services
             DiffContext DiffContext,
             CrawlArtifactManager CrawlArtifactManager,
             IConfiguration AppConfiguration,
-            WriterQueueService WriterQueueService
+            WriterQueueService WriterQueueService,
+            ILoggingProvider loggingProvider
             )
         {
             this.DiffTest = DiffTest;
             this.DiffDriver = DiffDriver;
             this.DiffContext = DiffContext;
             this.CrawlArtifactManager = CrawlArtifactManager;
-            Logger = LogManager.GetCurrentClassLogger();
+            Logger = loggingProvider;
             SiteArtifactsWinPath = AppConfiguration["SiteArtifactsWinPath"];
             this.WriterQueueService = WriterQueueService;
         }
@@ -44,6 +46,7 @@ namespace CrawlerWebApi.Services
             try
             {
                 Logger.Info("<<TestStarted>>");
+                Logger.RaiseEvent(TaffieEventType.DiffTestStarted, "Diff test has  started");
 
                 TimerUtil.StartTimer(DiffTest.Timers, "DiffDuration");
 
@@ -105,11 +108,13 @@ namespace CrawlerWebApi.Services
 
                 // ***************************************
                 Logger.Info("<<TestEnded>>");
+                Logger.RaiseEvent(TaffieEventType.DiffTestEnded, "Diff test has ended");
                 return new TestResult { Success = true, ErrorMessage = "Successfully completed diff test" };
 
             } catch (Exception ex)
             {
                 Logger.Info("<<TestError>>, <<TestEnded>>");
+                Logger.RaiseEvent(TaffieEventType.DiffTestEnded, "Diff test has ended");
                 Logger.Error(ex, "<<Error>> Unexpected error during diff test execution.");
                 return new TestResult { Success = false, ErrorMessage = ex.Message };
             }
