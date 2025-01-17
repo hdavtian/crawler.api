@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Microsoft.Playwright;
 using System.Net;
+using IC.Test.Playwright.Crawler.Enum;
 
 namespace CrawlerWebApi.Controllers
 {
@@ -26,6 +27,7 @@ namespace CrawlerWebApi.Controllers
         private readonly IDiffTestService DiffTestService;
         private readonly ITestService TestService;
         private readonly ILoggingProvider Logger;
+        private readonly string SiteArtifactsWinPath;
 
         public TestController(
             ITestService testService,
@@ -33,6 +35,7 @@ namespace CrawlerWebApi.Controllers
             IDiffTestService diffTestService,
             CrawlTest testModel,
             DiffTest diffTest,
+            IConfiguration AppConfiguration,
             ILoggingProvider logger)
         {
             BaselineTestService = baselineTestService;
@@ -41,6 +44,7 @@ namespace CrawlerWebApi.Controllers
             Logger = logger;
             CrawlTest = testModel;
             DiffTest = diffTest;
+            SiteArtifactsWinPath = AppConfiguration["SiteArtifactsWinPath"];
         }
 
         //
@@ -76,6 +80,7 @@ namespace CrawlerWebApi.Controllers
             // Generate a unique TestId (GUID)
             var testGuid = Guid.NewGuid();
             CrawlTest.Id = testGuid;
+            CrawlTest.CrawlType = request.CrawlType;
             CrawlTest.LogFileName = $"crawl-{testGuid}.log";
 
             // Immediately send the testGuid to the frontend
@@ -86,9 +91,6 @@ namespace CrawlerWebApi.Controllers
             _ = Task.Run(async () =>
             {
                 Logger.SetParams(testGuid.ToString(), "crawl");
-                //using (ScopeContext.PushProperty("TestType", "crawl"))
-                //using (ScopeContext.PushProperty("TestId", testGuid))
-                //{
                 try
                 {
                     Logger.Info($"Crawl test {testGuid} is starting...");
@@ -130,8 +132,19 @@ namespace CrawlerWebApi.Controllers
                     string errMsg = "<<Error>> An error occurred during the test execution.";
                     Logger.Error(ex, errMsg);
                 }
-                
-                //}
+                finally
+                {
+                    // if CrawlType.Scratch then delete save dir and remove test from manifest
+                    if (CrawlTest.CrawlType.Equals(CrawlType.Scratch) || CrawlTest.CrawlType.Equals(CrawlType.LoginOnly))
+                    {
+                        Logger.Info("Will now delete all captured artifacts...");
+                        //await FileUtil.DeleteFilesInDirectoryAsync();
+                        FileUtil.DeleteDirectory(CrawlTest.BaseSaveFolder);
+                        Logger.Info($"Removed '{CrawlTest.BaseSaveFolder}' and all of its contents");
+                        string testsManifestFile = Path.Combine(SiteArtifactsWinPath, "tests.json");
+                        ReportWriter.PruneTestsManifest(testsManifestFile, Logger);
+                    }
+                }
             });
 
             // Return an empty result immediately after sending the testGuid

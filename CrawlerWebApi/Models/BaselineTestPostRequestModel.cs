@@ -1,9 +1,11 @@
-﻿using IC.Test.Playwright.Crawler.Models;
+﻿using IC.Test.Playwright.Crawler.Enum;
+using IC.Test.Playwright.Crawler.Models;
 
 namespace CrawlerWebApi.Models
 {
     public class BaselineTestPostRequestModel
     {
+        public CrawlType CrawlType { get; set; }
         public bool RequiresLogin { get; set; }
         public string Url { get; set; }
         public string Username { get; set; }
