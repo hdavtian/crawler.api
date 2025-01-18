@@ -742,6 +742,17 @@ namespace CrawlerWebApi.Controllers
                 // Deserialize using Newtonsoft.Json
                 var model = Newtonsoft.Json.JsonConvert.DeserializeObject<PtierVersionModel>(content);
 
+                //model.SdkVersion
+                // for one entry it included username and password, so let's obfuscate on our end until
+                // original api fixes it. let's take the same precaution for model.PtierVersion
+                if (model.SdkVersion.ToLower().IndexOf("username") != -1 || model.SdkVersion.ToLower().IndexOf("password") != -1)
+                {
+                    model.SdkVersion = "*** Removed sensitive info, report to denpwptool1 api";
+                }
+                if (model.PtierVersion.ToLower().IndexOf("username") != -1 || model.PtierVersion.ToLower().IndexOf("password") != -1)
+                {
+                    model.PtierVersion = "*** Removed sensitive info, report to denpwptool1 api";
+                }
                 return Ok(model);
             }
         }
