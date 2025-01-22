@@ -419,10 +419,12 @@ namespace CrawlerWebApi.Services
 
             foreach (var property in properties)
             {
+                /*
                 var value = property.Name.Equals("Password", StringComparison.OrdinalIgnoreCase)
                     ? "" // Mask the password value
                     : property.GetValue(model) ?? "null"; // Log the actual value or "null" if not set
-
+                */
+                var value = property.GetValue(model) ?? "null"; // Log the actual value or "null" if not set
                 logMessage.AppendLine($"{property.Name}: {value}");
             }
 
