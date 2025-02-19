@@ -93,6 +93,8 @@ namespace CrawlerWebApi.Services
                     Logger.Error(ex, "<<Error>> Failed to set up test model.");
                     Logger.Info("<<TestEnded>>");
                     Logger.RaiseEvent(TaffieEventType.CrawlTestEnded, "Crawl test has ended");
+                    await PlaywrightContext.DisposeAsync();
+                    Logger.Info("Playwright context disposed successfully.");
                     return new TestResult { Success = false, ErrorMessage = "Failed to set up test model." };
                 }
 
@@ -130,6 +132,8 @@ namespace CrawlerWebApi.Services
                     Logger.Error(ex, "<<Error>> Failed to initialize Playwright context.");
                     Logger.Info("<<TestEnded>>");
                     Logger.RaiseEvent(TaffieEventType.CrawlTestEnded, "Crawl test has ended");
+                    await PlaywrightContext.DisposeAsync();
+                    Logger.Info("Playwright context disposed successfully.");
                     return new TestResult { Success = false, ErrorMessage = "Failed to initialize Playwright context." };
                 }
 
@@ -193,6 +197,8 @@ namespace CrawlerWebApi.Services
                     Logger.Error(ex, "<<Error>> Failed to set up network interception.");
                     Logger.Info("<<TestEnded>>");
                     Logger.RaiseEvent(TaffieEventType.CrawlTestEnded, "Crawl test has ended");
+                    await PlaywrightContext.DisposeAsync();
+                    Logger.Info("Playwright context disposed successfully.");
                     return new TestResult { Success = false, ErrorMessage = "Failed to set up network interception." };
                 }
 
@@ -209,6 +215,8 @@ namespace CrawlerWebApi.Services
                         {
                             Logger.Info($"<<TestEnded>> This was a '{CrawlTest.CrawlType}' test");
                             Logger.RaiseEvent(TaffieEventType.CrawlTestEnded, "Crawl test has ended");
+                            await PlaywrightContext.DisposeAsync();
+                            Logger.Info("Playwright context disposed successfully.");
                             return new TestResult { Success = true};
                         }
                     }
@@ -221,6 +229,8 @@ namespace CrawlerWebApi.Services
                         Logger.RaiseEvent(TaffieEventType.LoginFailed, errMsg);
                         Logger.RaiseEvent(TaffieEventType.Error, errMsg);
                         Logger.RaiseEvent(TaffieEventType.CrawlTestEnded, "Crawl test has ended");
+                        await PlaywrightContext.DisposeAsync();
+                        Logger.Info("Playwright context disposed successfully.");
                         return new TestResult { Success = false, ErrorMessage = errMsg };
                     }
                 } 
@@ -261,6 +271,8 @@ namespace CrawlerWebApi.Services
                 // Perform crawl
                 try
                 {
+                    // slight wait for the forwards to complete to dash after login
+                    await CrawlerCommon.WaitInMilliseconds(3000);
                     await CrawlDriver.Crawl();
                     Logger.Info("Crawl completed successfully.");
                 }
@@ -270,6 +282,8 @@ namespace CrawlerWebApi.Services
                     Logger.Error(ex, errMsg);
                     Logger.Info("<<TestEnded>>");
                     Logger.RaiseEvent(TaffieEventType.CrawlTestEnded, "Crawl test has ended");
+                    await PlaywrightContext.DisposeAsync();
+                    Logger.Info("Playwright context disposed successfully.");
                     return new TestResult { Success = false, ErrorMessage = errMsg };
                 }
 
@@ -286,6 +300,8 @@ namespace CrawlerWebApi.Services
                     Logger.Error(ex, "<<Error>> Failed to stop timer and assign duration.");
                     Logger.Info("<<TestEnded>>");
                     Logger.RaiseEvent(TaffieEventType.CrawlTestEnded, "Crawl test has ended");
+                    await PlaywrightContext.DisposeAsync();
+                    Logger.Info("Playwright context disposed successfully.");
                     return new TestResult { Success = false, ErrorMessage = "Failed to stop timer and assign duration." };
                 }
 
@@ -310,6 +326,8 @@ namespace CrawlerWebApi.Services
                     Logger.Error(ex, "<<Error>> Failed to dispose Playwright context.");
                     Logger.Info("<<TestEnded>>");
                     Logger.RaiseEvent(TaffieEventType.CrawlTestEnded, "Crawl test has ended");
+                    await PlaywrightContext.DisposeAsync();
+                    Logger.Info("Playwright context disposed successfully.");
                     return new TestResult { Success = false, ErrorMessage = "Failed to dispose Playwright context." };
                 }
 
@@ -320,7 +338,8 @@ namespace CrawlerWebApi.Services
                 await FileUtil.MoveFileAsync(SourceFilePath, CrawlTest.BaseSaveFolder, CrawlTest.LogFileName, Logger);
                 Logger.Info("<<TestEnded>>");
                 Logger.RaiseEvent(TaffieEventType.CrawlTestEnded, "Crawl test has ended");
-
+                await PlaywrightContext.DisposeAsync();
+                Logger.Info("Playwright context disposed successfully.");
                 return new TestResult { Success = true };
             }
             catch (Exception ex)
@@ -328,6 +347,8 @@ namespace CrawlerWebApi.Services
                 Logger.Info("<<TestError>>, <<TestEnded>>");
                 Logger.RaiseEvent(TaffieEventType.CrawlTestEnded, "Crawl test has ended");
                 Logger.Error(ex, "<<Error>> Unexpected error during baseline test execution.");
+                await PlaywrightContext.DisposeAsync();
+                Logger.Info("Playwright context disposed successfully.");
                 return new TestResult { Success = false, ErrorMessage = ex.Message };
             }
         }
@@ -405,6 +426,8 @@ namespace CrawlerWebApi.Services
                 Logger.Error(ex, "<<Error>> Failed to save reports.");
                 Logger.Info("<<TestEnded>>");
                 Logger.RaiseEvent(TaffieEventType.CrawlTestEnded, "Crawl test has ended");
+                await PlaywrightContext.DisposeAsync();
+                Logger.Info("Playwright context disposed successfully.");
                 throw;
                 //return new TestResult { Success = false, ErrorMessage = "Failed to save reports." };
             }
