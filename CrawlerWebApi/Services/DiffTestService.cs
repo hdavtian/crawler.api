@@ -88,6 +88,9 @@ namespace CrawlerWebApi.Services
                     ReportWriter.UpdateJsonManifest(diffTestsManifestFile, DiffTest);
                 });
 
+                // write any final reports
+                ReportWriter.SaveReport(DiffContext.DiffTestDiscrepancy, DiffTest.BaseSaveFolder, "missing-artifacts");
+
                 // copy baseline and newtest manifest files to diff base save for easy access
                 string sourceInfoFile = "test-info.json";
                 await FileUtil.CopyFileAsync(DiffContext.BaseTestSavePath, DiffTest.BaseSaveFolder, sourceInfoFile, "baseline-test-info.json");
@@ -111,7 +114,8 @@ namespace CrawlerWebApi.Services
                 Logger.RaiseEvent(TaffieEventType.DiffTestEnded, "Diff test has ended");
                 return new TestResult { Success = true, ErrorMessage = "Successfully completed diff test" };
 
-            } catch (Exception ex)
+            } 
+            catch (Exception ex)
             {
                 Logger.Info("<<TestError>>, <<TestEnded>>");
                 Logger.RaiseEvent(TaffieEventType.DiffTestEnded, "Diff test has ended");
