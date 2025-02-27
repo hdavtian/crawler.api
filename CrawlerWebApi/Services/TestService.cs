@@ -97,5 +97,10 @@ namespace CrawlerWebApi.Services
         {
             return await DiffArtifactManager.GetPageScreenshotDiff(Guid.Parse(testGuid), Guid.Parse(appGuid));
         }
+
+        public async Task<List<DiffTestMissingArtifact>> GetMissingArtifacts(string testGuid)
+        {
+            return await DiffArtifactManager.GetMissingArtifacts(Guid.Parse(testGuid));
+        }
     }
 }

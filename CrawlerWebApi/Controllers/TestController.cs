@@ -719,6 +719,39 @@ namespace CrawlerWebApi.Controllers
                 return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
             }
         }
+        [HttpGet("diff-tests/{testGuid}/missing-artifacts")]
+        public async Task<IActionResult> GetMissingArtifacts(string testGuid)
+        {
+            if (string.IsNullOrWhiteSpace(testGuid))
+                return BadRequest(new { message = "Test guid parameter cannot be null or empty." });
+
+            try
+            {
+                var missingArtifacts = await TestService.GetMissingArtifacts(testGuid);
+
+                if (missingArtifacts == null)
+                {
+                    return NotFound(new { message = "Missing artifacts not found for the provided GUID." });
+                }
+
+                return Ok(missingArtifacts);
+            }
+            catch (ArgumentException ex)
+            {
+                // Direct ArgumentException
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                // Check for wrapped exceptions
+                var errorMessage = ex.InnerException != null
+                    ? ex.InnerException.Message
+                    : ex.Message;
+
+                Logger.Error(ex, "<<Error>> An error occurred while getting missing artifacts.");
+                return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
+            }
+        }
         // --------------------------------
         // Other
         // --------------------------------

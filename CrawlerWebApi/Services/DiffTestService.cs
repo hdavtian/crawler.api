@@ -89,7 +89,7 @@ namespace CrawlerWebApi.Services
                 });
 
                 // write any final reports
-                ReportWriter.SaveReport(DiffContext.DiffTestDiscrepancy, DiffTest.BaseSaveFolder, "missing-artifacts");
+                ReportWriter.SaveReport(DiffContext.DiffTestMissingArtifacts, DiffTest.BaseSaveFolder, "missing-artifacts");
 
                 // copy baseline and newtest manifest files to diff base save for easy access
                 string sourceInfoFile = "test-info.json";
