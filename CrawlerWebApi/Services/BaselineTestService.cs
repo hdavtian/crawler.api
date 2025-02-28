@@ -9,6 +9,7 @@ using AngleSharp.Dom;
 using IC.Test.Playwright.Crawler.Providers.Logger.Enums;
 using IC.Test.Playwright.Crawler.Enums;
 using AngleSharp.Io;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace CrawlerWebApi.Services
 {
@@ -71,10 +72,13 @@ namespace CrawlerWebApi.Services
 
                 string _harFileName = $"{CrawlTest.Id}.har";
 
+                // Unique crawl duration timer name
+                string CrawlDurationTimerName = $"CrawlDuration_{Guid.NewGuid()}";
+
                 // Set up test model
                 try
                 {
-                    TimerUtil.StartTimer(CrawlTest.Timers, "ScenarioDuration");
+                    TimerUtil.StartTimer(CrawlTest.Timers, CrawlDurationTimerName);
                     CrawlTest.Name = "";
                     CrawlTest.Description = "";
                     CrawlTest.DateTime = DateTime.Now;
@@ -163,6 +167,33 @@ namespace CrawlerWebApi.Services
                             PostData = request.PostData,
                             PageUrl = _currentPageUrl
                         });
+                    };
+
+                    // At test end, when it's time to write this to a json file, will convert to a different collection
+                    // so that with get urlModel instead of just a string representing the url (UrlModel will have page title etc)
+                    // because UrlModel is not available here it comes from ictf.js execution on pages
+                    page.Console += (_, msg) =>
+                    {
+                        if (msg.Type == "error")
+                        {
+                            string url = page.Url;
+                            string errorMessage = $"[Console Javascript Error] {msg.Text} (URL: {url})";
+
+                            // Ensure the key exists
+                            if (!CrawlContext.ConsoleJsErrors.ContainsKey(url))
+                            {
+                                CrawlContext.ConsoleJsErrors[url] = new List<string>();
+                            }
+
+                            // Add error only if it's not already present
+                            if (!CrawlContext.ConsoleJsErrors[url].Contains(msg.Text))
+                            {
+                                CrawlContext.ConsoleJsErrors[url].Add(msg.Text);
+                                Logger.Warn(errorMessage);
+                            }
+
+                            Logger.Warn(errorMessage);
+                        }
                     };
 
                     page.Response += async (_, response) =>
@@ -290,8 +321,8 @@ namespace CrawlerWebApi.Services
                 // Stop timer and assign duration
                 try
                 {
-                    TimerUtil.StopTimer(CrawlTest.Timers, "ScenarioDuration");
-                    CrawlTest.Duration = TimerUtil.GetElapsedTime(CrawlTest.Timers, "ScenarioDuration");
+                    TimerUtil.StopTimer(CrawlTest.Timers, CrawlDurationTimerName);
+                    CrawlTest.Duration = TimerUtil.GetElapsedTime(CrawlTest.Timers, CrawlDurationTimerName);
                     CrawlTest.BaseUrl = request.Url;
                     Logger.Info("Timer stopped and duration assigned successfully.");
                 }
@@ -367,6 +398,7 @@ namespace CrawlerWebApi.Services
             //   page-screenshots.json
             //   app-screenshots.json
             //   pages-and-apps.json
+            //   js-console-errors.json
             //   tests.json (update)
 
             try
@@ -412,6 +444,49 @@ namespace CrawlerWebApi.Services
                 }
 
                 ReportWriter.SaveReport(CrawlContext.IcWebPages, CrawlTest.BaseSaveFolder, "pages-and-apps");
+
+                try
+                {
+                    if (CrawlContext.ConsoleJsErrors.Any()) // Ensure there are errors before saving
+                    {
+                        // Convert Dictionary<string, List<string>> to List<JsConsoleError>
+                        List<JsConsoleError> jsConsoleErrors = CrawlContext.ConsoleJsErrors
+                            .Where(entry => !string.IsNullOrWhiteSpace(entry.Key)) // Ensure key is valid
+                            .Select(entry =>
+                            {
+                                // Find the matching UrlModel by FullUrl
+                                var urlModel = CrawlContext.VisitedUrls.FirstOrDefault(url => url.FullUrl == entry.Key);
+
+                                if (urlModel != null)
+                                {
+                                    // Convert List<string> to List<JsError>
+                                    var convertedErrors = entry.Value
+                                        .Select(err => new JsError { ErrorMsg = err })
+                                        .ToList();
+
+                                    return new JsConsoleError
+                                    {
+                                        UrlModel = urlModel,
+                                        Errors = convertedErrors
+                                    };
+                                }
+
+                                return null; // Ignore if no match found
+                            })
+                            .Where(error => error is not null) // Remove nulls
+                            .ToList()!;
+
+                        if (jsConsoleErrors.Any()) // Ensure there are errors before saving
+                        {
+                            ReportWriter.SaveReport(jsConsoleErrors, CrawlTest.BaseSaveFolder, "js-console-errors");
+                            Logger.Info("Captured JavaScript console error reports saved successfully.");
+                        }
+                    }
+                } catch (Exception ex)
+                {
+                    Logger.Error(ex, "Something went wrong trying to convert and save js console error dictionary");
+                }
+
                 string testsManifestFile = Path.Combine(SiteArtifactsWinPath, "tests.json");
 
                 // Update the manifest

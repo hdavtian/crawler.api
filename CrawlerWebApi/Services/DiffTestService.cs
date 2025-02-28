@@ -48,7 +48,9 @@ namespace CrawlerWebApi.Services
                 Logger.Info("<<TestStarted>>");
                 Logger.RaiseEvent(TaffieEventType.DiffTestStarted, "Diff test has  started");
 
-                TimerUtil.StartTimer(DiffTest.Timers, "DiffDuration");
+                string DiffDurationTimerName = $"DiffDuration_{Guid.NewGuid()}";
+
+                TimerUtil.StartTimer(DiffTest.Timers, DiffDurationTimerName);
 
                 string baseTestGuidStr = request.BaseTestId!.ToString();
                 string newTestGuidStr = request.NewTestId!.ToString();
@@ -78,8 +80,8 @@ namespace CrawlerWebApi.Services
                 await DiffDriver.RunAppDiffsOnTests(baseTestGuid, newTestGuid);
 
                 // Stop timer
-                TimerUtil.StopTimer(DiffTest.Timers, "DiffDuration");
-                DiffTest.Duration = TimerUtil.GetElapsedTime(DiffTest.Timers, "DiffDuration");
+                TimerUtil.StopTimer(DiffTest.Timers, DiffDurationTimerName);
+                DiffTest.Duration = TimerUtil.GetElapsedTime(DiffTest.Timers, DiffDurationTimerName);
 
                 // Update diff manifest
                 await WriterQueueService.EnqueueAsync(async () =>

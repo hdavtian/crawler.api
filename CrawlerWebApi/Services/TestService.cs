@@ -68,6 +68,10 @@ namespace CrawlerWebApi.Services
         {
             return await CrawlArtifactManager.GetAppTextContent(Guid.Parse(testGuid), Guid.Parse(appGuid));
         }
+        public async Task<List<JsConsoleError>> GetJsConsoleErrors(string testGuid)
+        {
+            return await CrawlArtifactManager.GetJsConsoleErrors(Guid.Parse(testGuid));
+        }
         /* Diff tests*/
         public async Task<List<DiffTest>> GetDiffTests()
         {

@@ -221,7 +221,6 @@ namespace CrawlerWebApi.Controllers
             return new EmptyResult();
         }
 
-
         //
         // -
         // --
@@ -502,6 +501,39 @@ namespace CrawlerWebApi.Controllers
                     : ex.Message;
 
                 Logger.Error(ex, "<<Error>> An error occurred trying to get app html");
+                return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
+            }
+        }
+        [HttpGet("crawl-tests/{testGuid}/js-console-errors")]
+        public async Task<IActionResult> GetJsConsoleErrors(string testGuid)
+        {
+            if (string.IsNullOrWhiteSpace(testGuid))
+                return BadRequest(new { message = "Test Guid parameter cannot be null or empty." });
+
+            try
+            {
+                List<JsConsoleError> errorsList = await TestService.GetJsConsoleErrors(testGuid);
+
+                if (errorsList == null)
+                {
+                    return NotFound(new { message = "Js Console Errors were not found" });
+                }
+
+                return Ok(errorsList);
+            }
+            catch (ArgumentException ex)
+            {
+                // Direct ArgumentException
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                // Check for wrapped exceptions
+                var errorMessage = ex.InnerException != null
+                    ? ex.InnerException.Message
+                    : ex.Message;
+
+                Logger.Error(ex, "<<Error>> An error occurred trying to get js console errors");
                 return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
             }
         }
