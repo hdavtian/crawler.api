@@ -68,6 +68,10 @@ namespace CrawlerWebApi.Services
         {
             return await CrawlArtifactManager.GetAppTextContent(Guid.Parse(testGuid), Guid.Parse(appGuid));
         }
+        public async Task<List<JsConsoleError>> GetJsConsoleErrors(string testGuid)
+        {
+            return await CrawlArtifactManager.GetJsConsoleErrors(Guid.Parse(testGuid));
+        }
         /* Diff tests*/
         public async Task<List<DiffTest>> GetDiffTests()
         {
@@ -96,6 +100,11 @@ namespace CrawlerWebApi.Services
         public async Task<ScreenshotDiff> GetPageScreenshotDiff(string testGuid, string appGuid)
         {
             return await DiffArtifactManager.GetPageScreenshotDiff(Guid.Parse(testGuid), Guid.Parse(appGuid));
+        }
+
+        public async Task<List<DiffTestMissingArtifact>> GetMissingArtifacts(string testGuid)
+        {
+            return await DiffArtifactManager.GetMissingArtifacts(Guid.Parse(testGuid));
         }
     }
 }

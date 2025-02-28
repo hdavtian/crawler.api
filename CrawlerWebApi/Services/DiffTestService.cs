@@ -48,7 +48,9 @@ namespace CrawlerWebApi.Services
                 Logger.Info("<<TestStarted>>");
                 Logger.RaiseEvent(TaffieEventType.DiffTestStarted, "Diff test has  started");
 
-                TimerUtil.StartTimer(DiffTest.Timers, "DiffDuration");
+                string DiffDurationTimerName = $"DiffDuration_{Guid.NewGuid()}";
+
+                TimerUtil.StartTimer(DiffTest.Timers, DiffDurationTimerName);
 
                 string baseTestGuidStr = request.BaseTestId!.ToString();
                 string newTestGuidStr = request.NewTestId!.ToString();
@@ -78,8 +80,8 @@ namespace CrawlerWebApi.Services
                 await DiffDriver.RunAppDiffsOnTests(baseTestGuid, newTestGuid);
 
                 // Stop timer
-                TimerUtil.StopTimer(DiffTest.Timers, "DiffDuration");
-                DiffTest.Duration = TimerUtil.GetElapsedTime(DiffTest.Timers, "DiffDuration");
+                TimerUtil.StopTimer(DiffTest.Timers, DiffDurationTimerName);
+                DiffTest.Duration = TimerUtil.GetElapsedTime(DiffTest.Timers, DiffDurationTimerName);
 
                 // Update diff manifest
                 await WriterQueueService.EnqueueAsync(async () =>
@@ -87,6 +89,9 @@ namespace CrawlerWebApi.Services
                     string diffTestsManifestFile = Path.Combine(SiteArtifactsWinPath, "diff-tests", "tests.json");
                     ReportWriter.UpdateJsonManifest(diffTestsManifestFile, DiffTest);
                 });
+
+                // write any final reports
+                ReportWriter.SaveReport(DiffContext.DiffTestMissingArtifacts, DiffTest.BaseSaveFolder, "missing-artifacts");
 
                 // copy baseline and newtest manifest files to diff base save for easy access
                 string sourceInfoFile = "test-info.json";
@@ -111,7 +116,8 @@ namespace CrawlerWebApi.Services
                 Logger.RaiseEvent(TaffieEventType.DiffTestEnded, "Diff test has ended");
                 return new TestResult { Success = true, ErrorMessage = "Successfully completed diff test" };
 
-            } catch (Exception ex)
+            } 
+            catch (Exception ex)
             {
                 Logger.Info("<<TestError>>, <<TestEnded>>");
                 Logger.RaiseEvent(TaffieEventType.DiffTestEnded, "Diff test has ended");
