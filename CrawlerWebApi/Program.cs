@@ -71,6 +71,9 @@ builder.Services.AddCors(options =>
                           .AllowCredentials()); // Allow credentials like cookies, headers, etc.
 });
 
+// Register SvnService with IConfiguration support
+builder.Services.AddSingleton<SvnService>();
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -110,9 +113,6 @@ SignalRLogger.SetHubContext(hubContext);
 app.MapHub<LoggingHub>("/loggingHub");
 
 app.MapControllers();
-
-
-
 
 using (var scope = app.Services.CreateScope())
 {
