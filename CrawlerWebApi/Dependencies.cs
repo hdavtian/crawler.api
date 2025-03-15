@@ -8,6 +8,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Playwright;
 using System;
 using IC.Test.Playwright.Crawler.Providers.Logger;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 public static class Dependencies
 {
@@ -28,6 +31,7 @@ public static class Dependencies
         services.AddScoped<ITestService, TestService>();
         services.AddScoped<IBaselineTestService, BaselineTestService>();
         services.AddScoped<IDiffTestService, DiffTestService>();
+        services.AddScoped<ILdapAuthService, LdapAuthService>();
         services.AddScoped<ILoggingProvider, NLogProvider>(); // => default logger
         // services.AddScoped<ILoggingProvider, SerilogProvider>(); => example to inject muiltiple dependencies for provider
         services.AddSingleton<WriterQueueService>();
@@ -45,6 +49,30 @@ public static class Dependencies
             var playwrightContext = provider.GetRequiredService<PlaywrightContext>();
             return playwrightContext.Page; // Ensure that Page is initialized when accessed
         });
+
+        return services;
+    }
+    
+    public static IServiceCollection ConfigureAuthentication(this IServiceCollection services, IConfiguration configuration)
+    {
+        var jwtSettings = configuration.GetSection("JwtSettings");
+        var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]);
+
+        services
+            .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(options =>
+            {
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ValidIssuer = jwtSettings["Issuer"],
+                    ValidAudience = jwtSettings["Audience"],
+                    IssuerSigningKey = new SymmetricSecurityKey(key)
+                };
+            });
 
         return services;
     }

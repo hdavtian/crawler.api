@@ -52,6 +52,10 @@ builder.Services.AddSignalR(options =>
     options.KeepAliveInterval = TimeSpan.FromSeconds(15);    // Frequency of keep-alive messages sent by server
 });
 
+// Add authentication & authorization
+builder.Services.ConfigureAuthentication(builder.Configuration);
+builder.Services.AddAuthorization(); // Needed to enforce authentication on protected endpoints
+
 // DI (Dependency Injection)
 builder.Services.AddProjectDependencies();
 
@@ -74,9 +78,6 @@ builder.Services.AddCors(options =>
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-
-
-
 
 // -
 // --
@@ -101,7 +102,7 @@ if (app.Environment.IsDevelopment())
 app.UseCors("AllowSpecificOrigin");
 
 app.UseHttpsRedirection();
-
+app.UseAuthentication();
 app.UseAuthorization();
 
 // Set IHubContext for SignalRLogger (to make the static method work)
@@ -110,9 +111,6 @@ SignalRLogger.SetHubContext(hubContext);
 app.MapHub<LoggingHub>("/loggingHub");
 
 app.MapControllers();
-
-
-
 
 using (var scope = app.Services.CreateScope())
 {
