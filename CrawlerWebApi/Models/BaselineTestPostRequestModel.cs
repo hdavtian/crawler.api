@@ -25,5 +25,6 @@ namespace CrawlerWebApi.Models
         public PtierVersionModel PtierVersion { get; set; }
         public string ExtraUrls { get; set; }
         public bool OnlyCrawlExtraUrls { get; set; }
+        public TaffieUser? TaffieUser { get; set; }
     }
 }

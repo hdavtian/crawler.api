@@ -1,5 +1,6 @@
 ﻿using CrawlerWebApi.Interfaces;
 using CrawlerWebApi.Models;
+using IC.Test.Playwright.Crawler.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -30,8 +31,8 @@ namespace CrawlerWebApi.Controllers
             }
 
             // let's auth and get the user
-            LDAPUserInfo _LDAPUser = _ldapAuthService.AuthenticateAndGetUser(request.Username, request.Password);
-            bool isValidUser = (_LDAPUser != null);
+            TaffieUser _taffieUser = _ldapAuthService.AuthenticateAndGetUser(request.Username, request.Password);
+            bool isValidUser = (_taffieUser != null);
 
             if (!isValidUser)
             {
@@ -44,7 +45,7 @@ namespace CrawlerWebApi.Controllers
             // return token and user
             return Ok(new {
                 token,
-                userInfo = _LDAPUser
+                taffieUser = _taffieUser
             });
         }
 

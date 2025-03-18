@@ -1,5 +1,6 @@
 ﻿using CrawlerWebApi.Interfaces;
 using CrawlerWebApi.Models;
+using IC.Test.Playwright.Crawler.Models;
 using Microsoft.AspNetCore.Authentication;
 using Novell.Directory.Ldap;
 using System.DirectoryServices;
@@ -38,12 +39,12 @@ namespace CrawlerWebApi.Services
             }
         }
 
-        public LDAPUserInfo AuthenticateAndGetUser(string username, string password)
+        public TaffieUser AuthenticateAndGetUser(string username, string password)
         {
             // this is for testing
             if (false)
             {
-                var _user2 = new LDAPUserInfo
+                var tempTestUser = new TaffieUser
                 {
                     Authenticated = true,
                     Username = username,
@@ -51,7 +52,7 @@ namespace CrawlerWebApi.Services
                     DistinguishedName = "Harma Davtian",
                     Email = "hdavtian@investcloud.com",
                 };
-                return _user2;
+                return tempTestUser;
             }
             
             string ldapPath = _config["LDAP:LDAPUrl"];
@@ -80,7 +81,7 @@ namespace CrawlerWebApi.Services
 
                         using (System.DirectoryServices.DirectoryEntry userEntry = result.GetDirectoryEntry())
                         {
-                            var _user = new LDAPUserInfo
+                            var taffieUser = new TaffieUser
                             {
                                 Authenticated = true,
                                 Username = username,
@@ -88,7 +89,7 @@ namespace CrawlerWebApi.Services
                                 DistinguishedName = userEntry.Properties["distinguishedName"]?.Value?.ToString(),
                                 Email = userEntry.Properties["mail"]?.Value?.ToString(),
                             };
-                            return _user;
+                            return taffieUser;
                         }
                     }
                 }
