@@ -62,14 +62,14 @@ builder.Services.AddProjectDependencies();
 // Load NLog configuration
 NLog.LogManager.Setup().LoadConfigurationFromFile("nlog.config");
 
-// Get url from appsettings
-var allowedOrigin = builder.Configuration.GetValue<string>("CorsSettings:AllowedOrigin");
+// Get url array from appsettings
+var allowedOrigins = builder.Configuration.GetSection("CorsSettings:AllowedOrigins").Get<string[]>();
 
 // Add CORS policy
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowSpecificOrigin",
-        builder => builder.WithOrigins(allowedOrigin)
+    options.AddPolicy("CorsPolicy",
+        builder => builder.WithOrigins(allowedOrigins)
                           .AllowAnyMethod()
                           .AllowAnyHeader()
                           .AllowCredentials()); // Allow credentials like cookies, headers, etc.
@@ -99,7 +99,7 @@ if (app.Environment.IsDevelopment())
 }
 
 // Apply the CORS policy globally
-app.UseCors("AllowSpecificOrigin");
+app.UseCors("CorsPolicy");
 
 app.UseHttpsRedirection();
 app.UseAuthentication();
