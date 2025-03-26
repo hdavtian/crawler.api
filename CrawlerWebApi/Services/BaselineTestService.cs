@@ -89,6 +89,7 @@ namespace CrawlerWebApi.Services
                     CrawlTest.ExtraUrls = request.ExtraUrls;
                     CrawlTest.OnlyCrawlExtraUrls = request.OnlyCrawlExtraUrls;
                     CrawlTest.PtierVersion = request.PtierVersion;
+                    CrawlTest.TaffieUser = request.TaffieUser;
                     Logger.Info("Test model set up successfully.");
                     Logger.Info($"BaseSaveFolder: {CrawlTest.BaseSaveFolder}");
                 }
@@ -510,23 +511,65 @@ namespace CrawlerWebApi.Services
 
         private void LogBaselineTestPostRequestModel(BaselineTestPostRequestModel model)
         {
-            var properties = model.GetType().GetProperties();
             var logMessage = new StringBuilder();
-
             logMessage.AppendLine("Logging initially submitted 'BaselineTestPostRequestModel' properties:");
 
-            foreach (var property in properties)
-            {
-                /*
-                var value = property.Name.Equals("Password", StringComparison.OrdinalIgnoreCase)
-                    ? "" // Mask the password value
-                    : property.GetValue(model) ?? "null"; // Log the actual value or "null" if not set
-                */
-                var value = property.GetValue(model) ?? "null"; // Log the actual value or "null" if not set
-                logMessage.AppendLine($"{property.Name}: {value}");
-            }
+            AppendProperties(logMessage, model, 0); // Call helper method to handle recursion
 
             Logger.Info(logMessage.ToString());
         }
+
+        /**
+         * Recursively appends properties to the log message.
+         */
+        private void AppendProperties(StringBuilder logMessage, object obj, int indentLevel)
+        {
+            if (obj == null)
+            {
+                logMessage.AppendLine($"{new string(' ', indentLevel * 2)}null");
+                return;
+            }
+
+            var type = obj.GetType();
+
+            if (type.IsPrimitive || obj is string || obj is DateTime || obj is Guid || obj is decimal)
+            {
+                logMessage.AppendLine($"{new string(' ', indentLevel * 2)}{obj}");
+                return;
+            }
+
+            if (obj is IEnumerable<object> collection) // Handle collections
+            {
+                logMessage.AppendLine($"{new string(' ', indentLevel * 2)}Collection:");
+                foreach (var item in collection)
+                {
+                    AppendProperties(logMessage, item, indentLevel + 1);
+                }
+                return;
+            }
+
+            // Log properties of objects (excluding value types, strings, and collections)
+            foreach (var property in type.GetProperties())
+            {
+                var value = property.GetValue(obj);
+
+                logMessage.Append($"{new string(' ', indentLevel * 2)}{property.Name}: ");
+
+                if (value == null)
+                {
+                    logMessage.AppendLine("null");
+                }
+                else if (property.PropertyType.IsClass && property.PropertyType != typeof(string))
+                {
+                    logMessage.AppendLine();
+                    AppendProperties(logMessage, value, indentLevel + 1); // Recursively log nested properties
+                }
+                else
+                {
+                    logMessage.AppendLine(value.ToString());
+                }
+            }
+        }
+
     }
 }

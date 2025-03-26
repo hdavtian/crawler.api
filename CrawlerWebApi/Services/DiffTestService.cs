@@ -72,6 +72,7 @@ namespace CrawlerWebApi.Services
                 DiffTest.DateTime = DateTime.Now;
                 DiffTest.BaseTest = baseTest;
                 DiffTest.NewTest = newTest;
+                DiffTest.TaffieUser = request.TaffieUser;
 
                 // Page Screenshot Diff
                 await DiffDriver.RunPageScreenshotDiffsOnTests(baseTestGuid, newTestGuid);

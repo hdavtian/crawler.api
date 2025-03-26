@@ -52,20 +52,24 @@ builder.Services.AddSignalR(options =>
     options.KeepAliveInterval = TimeSpan.FromSeconds(15);    // Frequency of keep-alive messages sent by server
 });
 
+// Add authentication & authorization
+builder.Services.ConfigureAuthentication(builder.Configuration);
+builder.Services.AddAuthorization(); // Needed to enforce authentication on protected endpoints
+
 // DI (Dependency Injection)
 builder.Services.AddProjectDependencies();
 
 // Load NLog configuration
 NLog.LogManager.Setup().LoadConfigurationFromFile("nlog.config");
 
-// Get url from appsettings
-var allowedOrigin = builder.Configuration.GetValue<string>("CorsSettings:AllowedOrigin");
+// Get url array from appsettings
+var allowedOrigins = builder.Configuration.GetSection("CorsSettings:AllowedOrigins").Get<string[]>();
 
 // Add CORS policy
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowSpecificOrigin",
-        builder => builder.WithOrigins(allowedOrigin)
+    options.AddPolicy("CorsPolicy",
+        builder => builder.WithOrigins(allowedOrigins)
                           .AllowAnyMethod()
                           .AllowAnyHeader()
                           .AllowCredentials()); // Allow credentials like cookies, headers, etc.
@@ -74,9 +78,6 @@ builder.Services.AddCors(options =>
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-
-
-
 
 // -
 // --
@@ -98,10 +99,10 @@ if (app.Environment.IsDevelopment())
 }
 
 // Apply the CORS policy globally
-app.UseCors("AllowSpecificOrigin");
+app.UseCors("CorsPolicy");
 
 app.UseHttpsRedirection();
-
+app.UseAuthentication();
 app.UseAuthorization();
 
 // Set IHubContext for SignalRLogger (to make the static method work)
@@ -110,9 +111,6 @@ SignalRLogger.SetHubContext(hubContext);
 app.MapHub<LoggingHub>("/loggingHub");
 
 app.MapControllers();
-
-
-
 
 using (var scope = app.Services.CreateScope())
 {
