@@ -159,6 +159,12 @@ namespace CrawlerWebApi.Services
 
                     page.Request += (_, request) =>
                     {
+                        // new
+                        if (request.ResourceType == "xhr" || request.ResourceType == "fetch")
+                        {
+                            CrawlTest.XhrRequestStartTimes[request] = DateTime.UtcNow;
+                        }
+
                         //Logger.Info($"Request intercepted: {request.Url}");
                         CrawlTest.NetworkData.Add(new NetworkData
                         {
@@ -222,6 +228,31 @@ namespace CrawlerWebApi.Services
                                 //Logger.Warn($"Failed to capture response body for {response.Url}: {ex.Message}");
                             }
                         }
+
+                        var req = response.Request;
+
+                        if ((req.ResourceType == "xhr" || req.ResourceType == "fetch") &&
+                            CrawlTest.XhrRequestStartTimes.TryGetValue(req, out var start))
+                        {
+                            var end = DateTime.UtcNow;
+
+                            var group = CrawlTest.GroupedXhrTimings.FirstOrDefault(g => g.Url == _currentPageUrl);
+                            if (group == null)
+                            {
+                                group = new PageXhrTimingsGroup { Url = _currentPageUrl };
+                                CrawlTest.GroupedXhrTimings.Add(group);
+                            }
+
+                            group.XhrCalls.Add(new XhrCallTiming
+                            {
+                                Url = response.Url,
+                                StartTime = start,
+                                EndTime = end
+                            });
+
+                            CrawlTest.XhrRequestStartTimes.Remove(req);
+                        }
+
                     };
                 }
                 catch (Exception ex)
@@ -486,6 +517,16 @@ namespace CrawlerWebApi.Services
                 } catch (Exception ex)
                 {
                     Logger.Error(ex, "Something went wrong trying to convert and save js console error dictionary");
+                }
+
+                if (CrawlTest.GroupedXhrTimings?.Any() == true)
+                {
+                    //ReportWriter.SaveModelAsJsonFile(CrawlTest.GroupedXhrTimings, CrawlTest.BaseSaveFolder, "grouped-xhr-timings");
+
+                    var xhrWithUrlModels = CrawlTest.GroupedXhrTimings.ToWithUrlModel(CrawlContext.VisitedUrls);
+                    ReportWriter.SaveModelAsJsonFile(xhrWithUrlModels, CrawlTest.BaseSaveFolder, "xhr-timings");
+
+                    Logger.Info("Grouped XHR timings report saved successfully.");
                 }
 
                 string testsManifestFile = Path.Combine(SiteArtifactsWinPath, "tests.json");

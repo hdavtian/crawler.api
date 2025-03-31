@@ -72,6 +72,10 @@ namespace CrawlerWebApi.Services
         {
             return await CrawlArtifactManager.GetJsConsoleErrors(Guid.Parse(testGuid));
         }
+        public async Task<List<PageXhrTimingsGroupWithUrlModel>> GetPageXHRTimes(string testGuid)
+        {
+            return await CrawlArtifactManager.GetPageXHRTimes(Guid.Parse(testGuid));
+        }
         /* Diff tests*/
         public async Task<List<DiffTest>> GetDiffTests()
         {

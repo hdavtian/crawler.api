@@ -149,7 +149,6 @@ namespace CrawlerWebApi.Controllers
             // Return an empty result immediately after sending the testGuid
             return new EmptyResult();
         }
-
         [HttpPost("diff-tests/launch")]
         public async Task<IActionResult> RunDiffTest([FromBody] DiffTestPostRequestModel request)
         {
@@ -263,7 +262,6 @@ namespace CrawlerWebApi.Controllers
                 return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
             }
         }
-
         [HttpGet("crawl-tests/{testGuid}")]
         public async Task<IActionResult> GetCrawlTest(string testGuid)
         {
@@ -297,7 +295,6 @@ namespace CrawlerWebApi.Controllers
                 return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
             }
         }
-
         [HttpGet("crawl-tests/{testGuid}/page-screenshots")]
         public async Task<IActionResult> GetCrawlTestPageScreenshots(string testGuid)
         {
@@ -331,7 +328,6 @@ namespace CrawlerWebApi.Controllers
                 return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
             }
         }
-
         [HttpGet("crawl-tests/{testGuid}/app-screenshots")]
         public async Task<IActionResult> GetCrawlTestAppScreenshots(string testGuid)
         {
@@ -365,7 +361,6 @@ namespace CrawlerWebApi.Controllers
                 return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
             }
         }
-
         [HttpGet("crawl-tests/{testGuid}/urls")]
         public async Task<IActionResult> GetCrawledUrls(string testGuid)
         {
@@ -399,7 +394,6 @@ namespace CrawlerWebApi.Controllers
                 return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
             }
         }
-
         [HttpGet("crawl-tests/{testGuid}/page-app-summary")]
         public async Task<IActionResult> GetPageAppSummary(string testGuid)
         {
@@ -433,7 +427,6 @@ namespace CrawlerWebApi.Controllers
                 return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
             }
         }
-
         [HttpGet("crawl-tests/{testGuid}/app-artifacts")]
         public async Task<IActionResult> GetAppArtifacts(string testGuid)
         {
@@ -467,7 +460,6 @@ namespace CrawlerWebApi.Controllers
                 return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
             }
         }
-
         [HttpGet("crawl-tests/{testGuid}/app-html/{appGuid}")]
         public async Task<IActionResult> GetAppHtml(string testGuid, string appGuid)
         {
@@ -534,6 +526,39 @@ namespace CrawlerWebApi.Controllers
                     : ex.Message;
 
                 Logger.Error(ex, "<<Error>> An error occurred trying to get js console errors");
+                return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
+            }
+        }
+        [HttpGet("crawl-tests/{testGuid}/page-response-times")]
+        public async Task<IActionResult> GetPageXHRTimes(string testGuid)
+        {
+            if (string.IsNullOrWhiteSpace(testGuid))
+                return BadRequest(new { message = "Test Guid parameter cannot be null or empty." });
+
+            try
+            {
+                List<PageXhrTimingsGroupWithUrlModel> list = await TestService.GetPageXHRTimes(testGuid);
+
+                if (list == null)
+                {
+                    return NotFound(new { message = "Page XHR times were not found" });
+                }
+
+                return Ok(list);
+            }
+            catch (ArgumentException ex)
+            {
+                // Direct ArgumentException
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                // Check for wrapped exceptions
+                var errorMessage = ex.InnerException != null
+                    ? ex.InnerException.Message
+                    : ex.Message;
+
+                Logger.Error(ex, "<<Error>> An error occurred trying to get page xhr times");
                 return StatusCode(500, new { message = "An unexpected error occurred.", details = errorMessage });
             }
         }
