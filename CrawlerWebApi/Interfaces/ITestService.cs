@@ -1,4 +1,5 @@
 ﻿using CrawlerWebApi.Models;
+using CrawlerWebApi.Services;
 using IC.Test.Playwright.Crawler.Models;
 
 namespace CrawlerWebApi.Interfaces
@@ -22,5 +23,6 @@ namespace CrawlerWebApi.Interfaces
         Task<ScreenshotDiff> GetPageScreenshotDiff(string testGuid, string pageGuid);
         Task<List<DiffTestMissingArtifact>> GetMissingArtifacts(string testGuid);
         Task<List<JsConsoleError>> GetJsConsoleErrors(string testGuid);
+        Task<List<PageXhrTimingsGroupWithUrlModel>> GetPageXHRTimes(string testGuid);
     }
 }

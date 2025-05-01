@@ -10,6 +10,7 @@ using IC.Test.Playwright.Crawler.Providers.Logger.Enums;
 using IC.Test.Playwright.Crawler.Enums;
 using AngleSharp.Io;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using Microsoft.Playwright;
 
 namespace CrawlerWebApi.Services
 {
@@ -144,6 +145,7 @@ namespace CrawlerWebApi.Services
 
                 // Setup network interception
                 CrawlTest.NetworkData = new List<NetworkData>();
+                CrawlTest.XhrRequestStartTimes = new Dictionary<IRequest, DateTime>();
                 var page = PlaywrightContext.Page;
                 string _currentPageUrl = page.Url;
 
@@ -159,6 +161,22 @@ namespace CrawlerWebApi.Services
 
                     page.Request += (_, request) =>
                     {
+                        if (request?.ResourceType is "xhr" or "fetch")
+                        {
+                            try
+                            {
+                                // Only add if not already tracked, and key is valid
+                                if (request != null && !CrawlTest.XhrRequestStartTimes.ContainsKey(request))
+                                {
+                                    CrawlTest.XhrRequestStartTimes[request] = DateTime.UtcNow;
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Logger.Warn(ex, $"<<Warning>> Failed to track XHR start time for: {request?.Url}");
+                            }
+                        }
+
                         //Logger.Info($"Request intercepted: {request.Url}");
                         CrawlTest.NetworkData.Add(new NetworkData
                         {
@@ -222,6 +240,33 @@ namespace CrawlerWebApi.Services
                                 //Logger.Warn($"Failed to capture response body for {response.Url}: {ex.Message}");
                             }
                         }
+
+                        var req = response.Request;
+
+                        if ((req.ResourceType == "xhr" || req.ResourceType == "fetch") &&
+                            CrawlTest.XhrRequestStartTimes.TryGetValue(req, out var start))
+                        {
+                            var end = DateTime.UtcNow;
+
+                            var xhrGroupsSnapshot = CrawlTest.GroupedXhrTimings.ToList();
+                            var group = xhrGroupsSnapshot.FirstOrDefault(g => g.Url == _currentPageUrl);
+
+                            if (group == null)
+                            {
+                                group = new PageXhrTimingsGroup { Url = _currentPageUrl };
+                                CrawlTest.GroupedXhrTimings.Add(group);
+                            }
+
+                            group.XhrCalls.Add(new XhrCallTiming
+                            {
+                                Url = response.Url,
+                                StartTime = start,
+                                EndTime = end
+                            });
+
+                            CrawlTest.XhrRequestStartTimes.Remove(req);
+                        }
+
                     };
                 }
                 catch (Exception ex)
@@ -239,17 +284,30 @@ namespace CrawlerWebApi.Services
                 {
                     try
                     {
-                        await LoginDriver.LoginToApplication(request.Url, request.Username, request.Password);
+                        LoginSelectorOverrides overrides = null;
+
+                        if (!string.IsNullOrWhiteSpace(request.UsernameQuerySelector) &&
+                            !string.IsNullOrWhiteSpace(request.PasswordQuerySelector) &&
+                            !string.IsNullOrWhiteSpace(request.LoginButtonQuerySelector))
+                        {
+                            overrides = new LoginSelectorOverrides
+                            {
+                                UsernameFieldQuerySelector = request.UsernameQuerySelector,
+                                PasswordFieldQuerySelector = request.PasswordQuerySelector,
+                                LoginButtonQuerySelector = request.LoginButtonQuerySelector
+                            };
+                        }
+
+                        await LoginDriver.LoginToApplication(request.Url, request.Username, request.Password, overrides);
                         Logger.Info("Login performed successfully.");
 
-                        // if CrawlType.LoginOnly then return test
                         if (CrawlTest.CrawlType.Equals(CrawlType.LoginOnly))
                         {
                             Logger.Info($"<<TestEnded>> This was a '{CrawlTest.CrawlType}' test");
                             Logger.RaiseEvent(TaffieEventType.CrawlTestEnded, "Crawl test has ended");
                             await PlaywrightContext.DisposeAsync();
                             Logger.Info("Playwright context disposed successfully.");
-                            return new TestResult { Success = true};
+                            return new TestResult { Success = true };
                         }
                     }
                     catch (Exception ex)
@@ -265,7 +323,8 @@ namespace CrawlerWebApi.Services
                         Logger.Info("Playwright context disposed successfully.");
                         return new TestResult { Success = false, ErrorMessage = errMsg };
                     }
-                } 
+                }
+
                 else
                 {
                     await CrawlerCommon.NavigateToUrlAsync(request.Url);
@@ -486,6 +545,16 @@ namespace CrawlerWebApi.Services
                 } catch (Exception ex)
                 {
                     Logger.Error(ex, "Something went wrong trying to convert and save js console error dictionary");
+                }
+
+                if (CrawlTest.GroupedXhrTimings?.Any() == true)
+                {
+                    //ReportWriter.SaveModelAsJsonFile(CrawlTest.GroupedXhrTimings, CrawlTest.BaseSaveFolder, "grouped-xhr-timings");
+
+                    var xhrWithUrlModels = CrawlTest.GroupedXhrTimings.ToWithUrlModel(CrawlContext.VisitedUrls);
+                    ReportWriter.SaveModelAsJsonFile(xhrWithUrlModels, CrawlTest.BaseSaveFolder, "xhr-timings");
+
+                    Logger.Info("Grouped XHR timings report saved successfully.");
                 }
 
                 string testsManifestFile = Path.Combine(SiteArtifactsWinPath, "tests.json");

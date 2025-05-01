@@ -7,9 +7,13 @@ namespace CrawlerWebApi.Models
     {
         public CrawlType CrawlType { get; set; }
         public bool RequiresLogin { get; set; }
+        public bool RequiresLoginElementsCustomQuerySelectors { get; set; }
         public string Url { get; set; }
         public string Username { get; set; }
         public string Password { get; set; }
+        public string LoginButtonQuerySelector { get; set; }
+        public string UsernameQuerySelector { get; set; }
+        public string PasswordQuerySelector { get; set; }
         public bool Headless { get; set; }
         public string Browser {  get; set; }
         public int WindowWidth { get; set; }
