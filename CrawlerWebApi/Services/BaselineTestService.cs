@@ -10,6 +10,7 @@ using IC.Test.Playwright.Crawler.Providers.Logger.Enums;
 using IC.Test.Playwright.Crawler.Enums;
 using AngleSharp.Io;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using Microsoft.Playwright;
 
 namespace CrawlerWebApi.Services
 {
@@ -144,6 +145,7 @@ namespace CrawlerWebApi.Services
 
                 // Setup network interception
                 CrawlTest.NetworkData = new List<NetworkData>();
+                CrawlTest.XhrRequestStartTimes = new Dictionary<IRequest, DateTime>();
                 var page = PlaywrightContext.Page;
                 string _currentPageUrl = page.Url;
 
@@ -159,10 +161,20 @@ namespace CrawlerWebApi.Services
 
                     page.Request += (_, request) =>
                     {
-                        // new
-                        if (request.ResourceType == "xhr" || request.ResourceType == "fetch")
+                        if (request?.ResourceType is "xhr" or "fetch")
                         {
-                            CrawlTest.XhrRequestStartTimes[request] = DateTime.UtcNow;
+                            try
+                            {
+                                // Only add if not already tracked, and key is valid
+                                if (request != null && !CrawlTest.XhrRequestStartTimes.ContainsKey(request))
+                                {
+                                    CrawlTest.XhrRequestStartTimes[request] = DateTime.UtcNow;
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Logger.Warn(ex, $"<<Warning>> Failed to track XHR start time for: {request?.Url}");
+                            }
                         }
 
                         //Logger.Info($"Request intercepted: {request.Url}");
@@ -236,7 +248,9 @@ namespace CrawlerWebApi.Services
                         {
                             var end = DateTime.UtcNow;
 
-                            var group = CrawlTest.GroupedXhrTimings.FirstOrDefault(g => g.Url == _currentPageUrl);
+                            var xhrGroupsSnapshot = CrawlTest.GroupedXhrTimings.ToList();
+                            var group = xhrGroupsSnapshot.FirstOrDefault(g => g.Url == _currentPageUrl);
+
                             if (group == null)
                             {
                                 group = new PageXhrTimingsGroup { Url = _currentPageUrl };
