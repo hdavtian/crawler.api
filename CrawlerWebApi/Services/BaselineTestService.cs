@@ -270,17 +270,30 @@ namespace CrawlerWebApi.Services
                 {
                     try
                     {
-                        await LoginDriver.LoginToApplication(request.Url, request.Username, request.Password);
+                        LoginSelectorOverrides overrides = null;
+
+                        if (!string.IsNullOrWhiteSpace(request.UsernameQuerySelector) &&
+                            !string.IsNullOrWhiteSpace(request.PasswordQuerySelector) &&
+                            !string.IsNullOrWhiteSpace(request.LoginButtonQuerySelector))
+                        {
+                            overrides = new LoginSelectorOverrides
+                            {
+                                UsernameFieldQuerySelector = request.UsernameQuerySelector,
+                                PasswordFieldQuerySelector = request.PasswordQuerySelector,
+                                LoginButtonQuerySelector = request.LoginButtonQuerySelector
+                            };
+                        }
+
+                        await LoginDriver.LoginToApplication(request.Url, request.Username, request.Password, overrides);
                         Logger.Info("Login performed successfully.");
 
-                        // if CrawlType.LoginOnly then return test
                         if (CrawlTest.CrawlType.Equals(CrawlType.LoginOnly))
                         {
                             Logger.Info($"<<TestEnded>> This was a '{CrawlTest.CrawlType}' test");
                             Logger.RaiseEvent(TaffieEventType.CrawlTestEnded, "Crawl test has ended");
                             await PlaywrightContext.DisposeAsync();
                             Logger.Info("Playwright context disposed successfully.");
-                            return new TestResult { Success = true};
+                            return new TestResult { Success = true };
                         }
                     }
                     catch (Exception ex)
@@ -296,7 +309,8 @@ namespace CrawlerWebApi.Services
                         Logger.Info("Playwright context disposed successfully.");
                         return new TestResult { Success = false, ErrorMessage = errMsg };
                     }
-                } 
+                }
+
                 else
                 {
                     await CrawlerCommon.NavigateToUrlAsync(request.Url);
