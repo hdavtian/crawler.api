@@ -76,10 +76,11 @@ namespace CrawlerWebApi.Services
                     RecordVideo = request.RecordVideo,
                     VideoSavePath = request.RecordVideo ? Path.Combine(CrawlTest.BaseSaveFolder, "videos") : null,
                     SaveHar = request.SaveHar,
-                    HarPath = request.SaveHar ? CrawlTest.BaseSaveFolder : null
+                    HarPath = request.SaveHar ? CrawlTest.BaseSaveFolder : null,
                 };
 
                 (context, page) = await PlaywrightFactory.CreateContextAndPageAsync(options);
+
 
                 CrawlTest.Browser.Name = options.BrowserName;
                 CrawlTest.Browser.Width = options.Width;
@@ -138,6 +139,9 @@ namespace CrawlerWebApi.Services
                     CrawlTest.TaffieUser = request.TaffieUser;
                     Logger.Info("Test model set up successfully.");
                     Logger.Info($"BaseSaveFolder: {CrawlTest.BaseSaveFolder}");
+
+                    options.StorageStatePath = Path.Combine(CrawlTest.BaseSaveFolder, "storage-state.json");
+                    Logger.Info($"Set storage state path: {options.StorageStatePath}");
                 }
                 catch (Exception ex)
                 {
@@ -284,6 +288,8 @@ namespace CrawlerWebApi.Services
                 // Perform login
                 if (request.RequiresLogin)
                 {
+                    CrawlTest.PlaywrightOptions = options;
+
                     try
                     {
                         LoginSelectorOverrides overrides = null;
