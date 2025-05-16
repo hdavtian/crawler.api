@@ -13,6 +13,7 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 using Microsoft.Playwright;
 using IC.Test.Playwright.Crawler.Interfaces;
 using IC.Test.Playwright.Crawler.Providers.Playwright;
+using System.Collections.Concurrent;
 
 namespace CrawlerWebApi.Services
 {
@@ -317,14 +318,11 @@ namespace CrawlerWebApi.Services
                         string url = page.Url;
                         string errorMessage = $"[Console Javascript Error] {msg.Text} (URL: {url})";
 
-                        if (!CrawlContext.ConsoleJsErrors.ContainsKey(url))
-                        {
-                            CrawlContext.ConsoleJsErrors[url] = new List<string>();
-                        }
+                        var errorBag = CrawlContext.ConsoleJsErrors.GetOrAdd(url, _ => new ConcurrentBag<string>());
 
-                        if (!CrawlContext.ConsoleJsErrors[url].Contains(msg.Text))
+                        if (!errorBag.Contains(msg.Text))
                         {
-                            CrawlContext.ConsoleJsErrors[url].Add(msg.Text);
+                            errorBag.Add(msg.Text);
                             Logger.Warn(errorMessage);
                         }
 
@@ -680,8 +678,9 @@ namespace CrawlerWebApi.Services
 
                 // Add totals to CrawlTest to be included in manifest and test-info.json files
                 CrawlTest.UrlTotal = CrawlContext.VisitedUrls.Count;
-                CrawlTest.AppsUniqueTotal = CrawlerCommon.GetUniqueAppTotal(CrawlContext.IcWebPages);
-                CrawlTest.AppsTotal = CrawlerCommon.GetAllAppsTotal(CrawlContext.IcWebPages);
+                CrawlTest.AppsUniqueTotal = CrawlerCommon.GetUniqueAppTotal(CrawlContext.IcWebPages.ToList());
+                CrawlTest.AppsTotal = CrawlerCommon.GetAllAppsTotal(CrawlContext.IcWebPages.ToList());
+
                 CrawlTest.PageScreenshotsTotal = CrawlContext.PageScreenshots.Count;
                 CrawlTest.AppScreenshotsTotal = CrawlContext.AppScreenshots.Count;
 
