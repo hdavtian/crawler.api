@@ -38,6 +38,7 @@ public static class Dependencies
         // services.AddScoped<ILoggingProvider, SerilogProvider>(); => example to inject muiltiple dependencies for provider
         services.AddSingleton<WriterQueueService>();
         services.AddSingleton<IPlaywrightFactory, PlaywrightFactory>();
+        services.AddSingleton<TestRegistryService>();
         return services;
     }
     

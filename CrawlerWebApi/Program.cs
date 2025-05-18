@@ -50,6 +50,11 @@ builder.Services.AddSignalR(options =>
     options.ClientTimeoutInterval = TimeSpan.FromMinutes(2); // Time client can remain unresponsive before timeout
     options.HandshakeTimeout = TimeSpan.FromSeconds(30);     // Maximum time to wait for the initial handshake
     options.KeepAliveInterval = TimeSpan.FromSeconds(15);    // Frequency of keep-alive messages sent by server
+})
+.AddJsonProtocol(options =>
+{
+    // This will force SignalR to preserve PascalCase (matching your API output)
+    options.PayloadSerializerOptions.PropertyNamingPolicy = null;
 });
 
 // Add authentication & authorization

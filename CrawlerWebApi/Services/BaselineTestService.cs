@@ -35,6 +35,7 @@ namespace CrawlerWebApi.Services
         private readonly string SiteArtifactsWinPath;
         private readonly string SourceFilePath;
         private readonly WriterQueueService WriterQueueService;
+        private readonly TestRegistryService TestRegistryService;
 
         /// <summary>
         /// Constructor to initialize dependencies and configuration values.
@@ -48,7 +49,8 @@ namespace CrawlerWebApi.Services
             CrawlerCommon CrawlerCommon,
             IConfiguration AppConfiguration,
             WriterQueueService WriterQueueService,
-            ILoggingProvider loggingProvider
+            ILoggingProvider loggingProvider,
+            TestRegistryService testRegistryService
         )
         {
             this.PlaywrightFactory = PlaywrightFactory;
@@ -62,6 +64,7 @@ namespace CrawlerWebApi.Services
             SiteArtifactsWinPath = AppConfiguration["SiteArtifactsWinPath"];
             SourceFilePath = AppConfiguration["FileSettings:SourceFilePath"];
             this.WriterQueueService = WriterQueueService;
+            this.TestRegistryService = testRegistryService;
         }
 
         /// <summary>
@@ -73,49 +76,70 @@ namespace CrawlerWebApi.Services
         /// <returns>A <see cref="TestResult"/> indicating success or failure.</returns>
         public async Task<TestResult> RunBaselineTestAsync(BaselineTestPostRequestModel request)
         {
-            // 1. Initialize Playwright
-            var initResult = await InitializePlaywrightAsync(request);
-            if (!initResult.Success) return initResult;
+            var testId = CrawlTest.Id;
 
-            // 2. Configure Test and Context
-            var configResult = ConfigureTestAndContext(request, initResult.Options, initResult.Context, initResult.Page);
-            if (!configResult.Success) return configResult;
+            // Register the test at the very beginning with test registry
+            TestRegistryService.RegisterTest(testId, new TestStatus
+            {
+                TestId = testId,
+                TestType = "Crawl",
+                StartTime = DateTime.UtcNow,
+                Name = CrawlTest.Name,
+                Description = CrawlTest.Description,
+                TriggeredBy = CrawlTest.TaffieUser?.DisplayName
+            });
 
-            // 3. Setup Network Interception
-            var networkResult = SetupNetworkInterception(initResult.Page);
-            if (!networkResult.Success) return networkResult;
+            try
+            {
+                // 1. Initialize Playwright
+                var initResult = await InitializePlaywrightAsync(request);
+                if (!initResult.Success) return initResult;
 
-            // 4. Perform Login (if required)
-            var loginResult = await PerformLoginIfRequiredAsync(request, initResult.Page, initResult.Options);
-            if (!loginResult.Success) return loginResult;
-            if (loginResult is LoginOnlyTestResult loginOnly && loginOnly.IsLoginOnly) return loginOnly;
+                // 2. Configure Test and Context
+                var configResult = ConfigureTestAndContext(request, initResult.Options, initResult.Context, initResult.Page);
+                if (!configResult.Success) return configResult;
 
-            // 5. Handle Site Version Restrictions
-            var versionResult = HandleSiteVersionRestrictions();
-            if (!versionResult.Success) return versionResult;
+                // 3. Setup Network Interception
+                var networkResult = SetupNetworkInterception(initResult.Page);
+                if (!networkResult.Success) return networkResult;
 
-            // 6. Perform Crawl
-            var crawlResult = await PerformCrawlAsync(request, initResult.Options, initResult.Page);
-            if (!crawlResult.Success) return crawlResult;
+                // 4. Perform Login (if required)
+                var loginResult = await PerformLoginIfRequiredAsync(request, initResult.Page, initResult.Options);
+                if (!loginResult.Success) return loginResult;
+                if (loginResult is LoginOnlyTestResult loginOnly && loginOnly.IsLoginOnly) return loginOnly;
 
-            // 7. Finalize Timers
-            var timerResult = FinalizeTimers();
-            if (!timerResult.Success) return timerResult;
+                // 5. Handle Site Version Restrictions
+                var versionResult = HandleSiteVersionRestrictions();
+                if (!versionResult.Success) return versionResult;
 
-            // 8. Save Reports
-            var reportResult = await SaveReportsAsync(request, initResult.Context);
-            if (!reportResult.Success) return reportResult;
+                // 6. Perform Crawl
+                var crawlResult = await PerformCrawlAsync(request, initResult.Options, initResult.Page);
+                if (!crawlResult.Success) return crawlResult;
 
-            // 9. Dispose Context
-            var disposeResult = await DisposeContextAsync(initResult.Context);
-            if (!disposeResult.Success) return disposeResult;
+                // 7. Finalize Timers
+                var timerResult = FinalizeTimers();
+                if (!timerResult.Success) return timerResult;
 
-            // 10. Move Log and Raise Events
-            await FileUtil.MoveFileAsync(SourceFilePath, CrawlTest.BaseSaveFolder, CrawlTest.LogFileName, Logger);
-            Logger.Info("<<TestEnded>>");
-            Logger.RaiseEvent(TaffieEventType.CrawlTestEnded, "Crawl test has ended");
+                // 8. Save Reports
+                var reportResult = await SaveReportsAsync(request, initResult.Context);
+                if (!reportResult.Success) return reportResult;
 
-            return new TestResult { Success = true };
+                // 9. Dispose Context
+                var disposeResult = await DisposeContextAsync(initResult.Context);
+                if (!disposeResult.Success) return disposeResult;
+
+                // 10. Move Log and Raise Events
+                await FileUtil.MoveFileAsync(SourceFilePath, CrawlTest.BaseSaveFolder, CrawlTest.LogFileName, Logger);
+                Logger.Info("<<TestEnded>>");
+                Logger.RaiseEvent(TaffieEventType.CrawlTestEnded, "Crawl test has ended");
+
+                return new TestResult { Success = true };
+            }
+            finally
+            {
+                // Always unregister the test
+                TestRegistryService.MarkTestCompleted(testId);
+            }
         }
 
         /// <summary>
