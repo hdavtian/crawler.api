@@ -136,6 +136,7 @@ namespace CrawlerWebApi.Services
                 Logger.Info("<<TestError>>, <<TestEnded>>");
                 Logger.RaiseEvent(TaffieEventType.DiffTestEnded, "Diff test has ended");
                 Logger.Error(ex, "<<Error>> Unexpected error during diff test execution.");
+                Logger.RaiseEvent(TaffieEventType.Error, "<<Error>> Unexpected error during diff test execution." + ex.Message);
                 return new TestResult { Success = false, ErrorMessage = ex.Message };
             } finally
             {
