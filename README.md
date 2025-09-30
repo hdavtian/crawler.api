@@ -1,6 +1,3 @@
-# IC.Test.CrawlerWebApi
-https://gitlab.investcloud.com/hdavtian/ic.test.crawlerwebapi
-
 ## Table of contents
 
 - [Description](#description)
