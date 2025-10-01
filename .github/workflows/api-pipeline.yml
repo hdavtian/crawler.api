@@ -1,0 +1,207 @@
+name: C# API CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  # Stage 1: Lint C# Code
+  lint:
+    name: 🔍 Lint C# Code
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # Fetch the crawler.playwright dependency
+          submodules: false
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      
+      # For now, we'll check out the playwright dependency manually
+      - name: Checkout Playwright dependency
+        uses: actions/checkout@v4
+        with:
+          repository: hdavtian/crawler.playwright
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: crawler.playwright
+      
+      - name: Restore dependencies
+        run: dotnet restore CrawlerWebApi/CrawlerWebApi.csproj
+      
+      - name: Check code formatting
+        run: dotnet format --verify-no-changes --verbosity diagnostic
+
+  # Stage 2: Unit Tests
+  unit-tests:
+    name: 🧪 C# Unit Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Checkout Playwright dependency
+        uses: actions/checkout@v4
+        with:
+          repository: hdavtian/crawler.playwright
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: crawler.playwright
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      
+      - name: Restore dependencies
+        run: dotnet restore CrawlerWebApi/CrawlerWebApi.csproj
+      
+      - name: Run unit tests
+        run: dotnet test --no-restore --logger trx --results-directory TestResults/ --collect:"XPlat Code Coverage"
+      
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: TestResults/
+          retention-days: 30
+
+  # Stage 3: Build & Publish
+  build:
+    name: 🏗️ Build C# API
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Checkout Playwright dependency
+        uses: actions/checkout@v4
+        with:
+          repository: hdavtian/crawler.playwright
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: crawler.playwright
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      
+      - name: Restore dependencies
+        run: dotnet restore CrawlerWebApi/CrawlerWebApi.csproj
+      
+      - name: Build application
+        run: dotnet build CrawlerWebApi/CrawlerWebApi.csproj --no-restore --configuration Release
+      
+      - name: Publish application
+        run: dotnet publish CrawlerWebApi/CrawlerWebApi.csproj --no-build --configuration Release --output ./publish
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-build-artifacts
+          path: ./publish/
+          retention-days: 30
+
+  # Stage 4: Build Docker Image
+  dockerize:
+    name: 🐳 Build Docker Image
+    runs-on: ubuntu-latest
+    needs: build
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Checkout Playwright dependency
+        uses: actions/checkout@v4
+        with:
+          repository: hdavtian/crawler.playwright
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: crawler.playwright
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Login to Docker Hub
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKER_USERNAME }}/crawler-api
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+      
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Stage 5: Trigger E2E Tests (Optional)
+  trigger-e2e:
+    name: 🎭 Trigger E2E Tests
+    runs-on: ubuntu-latest
+    needs: dockerize
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Trigger E2E tests in crawler.playwright
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          script: |
+            github.rest.actions.createWorkflowDispatch({
+              owner: 'hdavtian',
+              repo: 'crawler.playwright',
+              workflow_id: 'e2e-tests.yml',
+              ref: 'main',
+              inputs: {
+                api_image: '${{ steps.meta.outputs.tags }}',
+                trigger_repo: 'crawler.api'
+              }
+            })
+
+  # Summary
+  pipeline-summary:
+    name: 📋 API Pipeline Summary
+    runs-on: ubuntu-latest
+    needs: [lint, unit-tests, build, dockerize]
+    if: always()
+    
+    steps:
+      - name: Pipeline Status
+        run: |
+          echo "## 🎯 C# API Pipeline Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Stage | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Lint | ${{ needs.lint.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Unit Tests | ${{ needs.unit-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build | ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dockerize | ${{ needs.dockerize.result }} |" >> $GITHUB_STEP_SUMMARY
