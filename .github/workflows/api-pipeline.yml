@@ -2,7 +2,12 @@ name: C# API CI/CD Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches: 
+      - main
+      - develop
+      - 'develop/**'
+      - 'feature/**'
+      - 'hd/**'
   pull_request:
     branches: [main]
 
