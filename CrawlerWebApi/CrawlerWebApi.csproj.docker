@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
 	<PropertyGroup>
 		<TargetFramework>net8.0</TargetFramework>
@@ -20,8 +20,9 @@
 		<Folder Include="videos\" />
 	</ItemGroup>
 
-	<ItemGroup>
+	<!-- Temporarily commented out for Docker testing -->
+	<!--<ItemGroup>
 	  <ProjectReference Include="..\..\crawler.playwright\IC.Test.Playwright.Crawler\IC.Test.Playwright.Crawler.csproj" />
-	</ItemGroup>
+	</ItemGroup>-->
 
 </Project>

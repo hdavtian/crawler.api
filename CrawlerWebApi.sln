@@ -5,7 +5,7 @@ VisualStudioVersion = 17.11.35219.272
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CrawlerWebApi", "CrawlerWebApi\CrawlerWebApi.csproj", "{B6AB3373-F036-4B6C-83C9-AB901474B55A}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IC.Test.Playwright.Crawler", "..\ic.test.relativetesting.engine\IC.Test.Playwright.Crawler\IC.Test.Playwright.Crawler.csproj", "{EC385EA2-D0FE-438D-BB67-AC1C5292CF75}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IC.Test.Playwright.Crawler", "..\crawler.playwright\IC.Test.Playwright.Crawler\IC.Test.Playwright.Crawler.csproj", "{00ECE288-DE04-7D81-0893-6AD4988997A0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -17,10 +17,10 @@ Global
 		{B6AB3373-F036-4B6C-83C9-AB901474B55A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B6AB3373-F036-4B6C-83C9-AB901474B55A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B6AB3373-F036-4B6C-83C9-AB901474B55A}.Release|Any CPU.Build.0 = Release|Any CPU
-		{EC385EA2-D0FE-438D-BB67-AC1C5292CF75}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{EC385EA2-D0FE-438D-BB67-AC1C5292CF75}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{EC385EA2-D0FE-438D-BB67-AC1C5292CF75}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{EC385EA2-D0FE-438D-BB67-AC1C5292CF75}.Release|Any CPU.Build.0 = Release|Any CPU
+		{00ECE288-DE04-7D81-0893-6AD4988997A0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{00ECE288-DE04-7D81-0893-6AD4988997A0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{00ECE288-DE04-7D81-0893-6AD4988997A0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{00ECE288-DE04-7D81-0893-6AD4988997A0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
