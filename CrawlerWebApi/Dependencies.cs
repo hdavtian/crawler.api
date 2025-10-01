@@ -11,6 +11,8 @@ using IC.Test.Playwright.Crawler.Providers.Logger;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using IC.Test.Playwright.Crawler.Interfaces;
+using IC.Test.Playwright.Crawler.Providers.Playwright;
 
 public static class Dependencies
 {
@@ -35,21 +37,8 @@ public static class Dependencies
         services.AddScoped<ILoggingProvider, NLogProvider>(); // => default logger
         // services.AddScoped<ILoggingProvider, SerilogProvider>(); => example to inject muiltiple dependencies for provider
         services.AddSingleton<WriterQueueService>();
-
-        // Register PlaywrightContext and IPage
-        services.AddScoped<PlaywrightContext>(provider =>
-        {
-            var playwrightContext = new PlaywrightContext();
-            return playwrightContext;
-        });
-
-        // Register IPage based on PlaywrightContext
-        services.AddScoped<IPage>(provider =>
-        {
-            var playwrightContext = provider.GetRequiredService<PlaywrightContext>();
-            return playwrightContext.Page; // Ensure that Page is initialized when accessed
-        });
-
+        services.AddSingleton<IPlaywrightFactory, PlaywrightFactory>();
+        services.AddSingleton<TestRegistryService>();
         return services;
     }
     

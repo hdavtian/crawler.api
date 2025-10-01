@@ -22,6 +22,7 @@ namespace CrawlerWebApi.Services
         private readonly ILoggingProvider Logger;
         private readonly string SiteArtifactsWinPath;
         private readonly WriterQueueService WriterQueueService;
+        private readonly TestRegistryService TestRegistryService;
 
         public DiffTestService(
             DiffTest DiffTest,
@@ -30,7 +31,8 @@ namespace CrawlerWebApi.Services
             CrawlArtifactManager CrawlArtifactManager,
             IConfiguration AppConfiguration,
             WriterQueueService WriterQueueService,
-            ILoggingProvider loggingProvider
+            ILoggingProvider loggingProvider,
+            TestRegistryService testRegistryService
             )
         {
             this.DiffTest = DiffTest;
@@ -40,9 +42,20 @@ namespace CrawlerWebApi.Services
             Logger = loggingProvider;
             SiteArtifactsWinPath = AppConfiguration["SiteArtifactsWinPath"];
             this.WriterQueueService = WriterQueueService;
+            TestRegistryService = testRegistryService;
         }
         public async Task<TestResult> RunDiffTestAsync(DiffTestPostRequestModel request)
         {
+            TestRegistryService.RegisterTest(DiffTest.Id, new TestStatus
+            {
+                TestId = DiffTest.Id,
+                TestType = "Diff",
+                StartTime = DateTime.UtcNow,
+                Name = DiffTest.Name,
+                Description = DiffTest.Description,
+                TriggeredBy = DiffTest.TaffieUser?.DisplayName
+            });
+
             try
             {
                 Logger.Info("<<TestStarted>>");
@@ -123,7 +136,11 @@ namespace CrawlerWebApi.Services
                 Logger.Info("<<TestError>>, <<TestEnded>>");
                 Logger.RaiseEvent(TaffieEventType.DiffTestEnded, "Diff test has ended");
                 Logger.Error(ex, "<<Error>> Unexpected error during diff test execution.");
+                Logger.RaiseEvent(TaffieEventType.Error, "<<Error>> Unexpected error during diff test execution." + ex.Message);
                 return new TestResult { Success = false, ErrorMessage = ex.Message };
+            } finally
+            {
+                TestRegistryService.MarkTestCompleted(DiffTest.Id);
             }
         }
 
